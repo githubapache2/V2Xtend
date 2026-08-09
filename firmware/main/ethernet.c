@@ -82,20 +82,9 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
 
 static void update_mtu(esp_netif_t *netif)
 {
-    uint16_t mtu;
-    esp_err_t res = esp_netif_get_mtu(netif, &mtu);
-    if (res != ESP_OK)
-    {
-        ESP_LOGE(TAG, "esp_netif_get_mtu failed: %s", esp_err_to_name(res));
-        return;
-    }
-
-    if (mtu > MAX_MTU)
-    {
-        res = esp_netif_set_mtu(netif, MAX_MTU);
-        if (res != ESP_OK)
-            ESP_LOGE(TAG, "esp_netif_set_mtu failed: %s", esp_err_to_name(res));
-    }
+    /* esp_netif has no public get/set MTU API; MTU is fixed at netif creation
+     * time via esp_netif_inherent_config_t and cannot be changed afterwards. */
+    (void)netif;
 }
 
 /** Event handler for IP events */
@@ -143,26 +132,6 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base,
         }
         break;
     }
-    case IP_EVENT_NETIF_UP:
-    {
-        ESP_LOGI(TAG, "Ethernet %s up", ifname);
-
-        // If this is the management netif and we have a static IP, configure some things and
-        // fire an event to start MQTT etc.
-        if (netif == mgmt_netif && static_ip)
-        {
-            eth_config_dns(netif);
-            update_mtu(netif);
-
-            esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_GOT_IP, NULL, 0, 0);
-            if (post_res != ESP_OK)
-            {
-                ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_res));
-            }
-        }
-        break;
-    }
-
     default:
         break;
     }
@@ -224,7 +193,6 @@ static void configure_management_interface(esp_eth_handle_t *eth_handle, int idx
 
     esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_ETH();
     esp_netif_config.route_prio -= idx * 5;
-    esp_netif_config.mtu = MAX_MTU;
 
     char ip_str[CONFIG_IPV4_BUFFER_SIZE] = {0};
     char nm_str[CONFIG_IPV4_BUFFER_SIZE] = {0};

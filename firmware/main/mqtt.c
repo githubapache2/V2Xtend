@@ -280,7 +280,7 @@ void mqtt_stop(void)
         return;
     }
 
-    esp_timer_stop_blocking(stats_timer_handle, 1000);
+    esp_timer_stop(stats_timer_handle);
 
     esp_mqtt_client_stop(client);
     mqtt_set_connected(false);

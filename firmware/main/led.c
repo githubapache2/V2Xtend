@@ -76,7 +76,7 @@ static void set_led_with_brightness(led_indicator_handle_t handle, uint32_t irgb
 
 static void set_eth_led_disconnected(void)
 {
-    esp_timer_stop_blocking(eth_led_timer_handle, 10 / portTICK_PERIOD_MS);
+    esp_timer_stop(eth_led_timer_handle);
 
     eth_led_state = LED_IRGB(LED_ETH, 0, 0, 0);
     set_led_with_brightness(led_handle, eth_led_state);
@@ -84,7 +84,7 @@ static void set_eth_led_disconnected(void)
 
 static void set_eth_led_connected(void)
 {
-    esp_timer_stop_blocking(eth_led_timer_handle, 10 / portTICK_PERIOD_MS);
+    esp_timer_stop(eth_led_timer_handle);
 
     eth_led_blink_state = false;
     eth_led_state = LED_IRGB(LED_ETH, 0, 0, 0);
@@ -95,7 +95,7 @@ static void set_eth_led_connected(void)
 
 static void set_eth_led_connected_with_ip(void)
 {
-    esp_timer_stop_blocking(eth_led_timer_handle, 10 / portTICK_PERIOD_MS);
+    esp_timer_stop(eth_led_timer_handle);
 
     eth_led_state = eth_speed == ETH_SPEED_100M ? LED_ETH_COLOR_100M : LED_ETH_COLOR_10M;
     set_led_with_brightness(led_handle, eth_led_state);
