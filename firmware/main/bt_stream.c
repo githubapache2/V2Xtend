@@ -19,6 +19,7 @@
 #include "nvs_flash.h"
 #include "driver/usb_serial_jtag.h"
 
+#include "ble_cache.h"
 #include "cmd_sniffer.h"
 #include "led.h"
 
@@ -102,7 +103,15 @@ static QueueHandle_t  s_queue;
  * below ~500 ms hurts (advert windows get missed). The iOS app exposes 3 presets
  * — Stabil(connSniff 300) / Ausgewogen(500) / Mehr Daten(600) — and this
  * compiled default equals the Ausgewogen preset. */
-static volatile uint16_t s_cycle_ms[4] = { 1000, 1000, 500, 400 };
+/* TEMP EXPERIMENT (siehe CLAUDE.md Roadmap, 2026-08-09): testweise auf die
+ * Android-App-Presets "Pairing"-Werte umgestellt, um zu prüfen, ob ein
+ * grosszuegigeres BLE-Fenster die wiederholten GATT status=133 / HCI 0x3e
+ * Verbindungsabbrueche behebt (Reset- und RPi-Ursache bereits per
+ * Isolationstest ausgeschlossen). Kompilierter Ausgewogen-Default war:
+ *   { 1000, 1000, 500, 400 }
+ * Bei Bedarf zurueckrudern, indem die Zeile unten wieder auf diesen Wert
+ * gesetzt wird. */
+static volatile uint16_t s_cycle_ms[4] = { 3000, 1500, 1500, 1500 };
 #define CYC_DISC_SNIFF  s_cycle_ms[0]
 #define CYC_DISC_BLE    s_cycle_ms[1]
 #define CYC_CONN_SNIFF  s_cycle_ms[2]
@@ -114,6 +123,7 @@ static void cfg_load(void);
 static void cfg_save(void);
 
 static int gap_event_cb(struct ble_gap_event *ev, void *arg);
+static void cache_drain_task(void *arg);
 
 /* Inject ASCII diagnostics into the USB stream. The frame reader (resync on
  * the "ITS5" magic) drops every byte that is not part of a real frame, so we
@@ -344,8 +354,16 @@ static int gap_event_cb(struct ble_gap_event *ev, void *arg)
         break;
     case BLE_GAP_EVENT_SUBSCRIBE:
         if (ev->subscribe.attr_handle == s_chr_val_handle) {
+            bool was_enabled = s_notify_enabled;
             s_notify_enabled = ev->subscribe.cur_notify;
             ESP_LOGI(TAG, "notify subscription=%d", s_notify_enabled);
+            if (s_notify_enabled && !was_enabled) {
+                /* Client just (re)subscribed — flush anything that piled
+                 * up in the disconnect cache while nobody was listening,
+                 * DENM-first. Runs in its own task so this GAP callback
+                 * (NimBLE host task) doesn't block on BLE sends. */
+                xTaskCreate(cache_drain_task, "ble_drain", 4096, NULL, 4, NULL);
+            }
         }
         break;
     case BLE_GAP_EVENT_MTU:
@@ -563,6 +581,8 @@ void bt_stream_init(void)
     dbg_printf("[bt] cfg load: %u/%u %u/%u",
                CYC_DISC_SNIFF, CYC_DISC_BLE, CYC_CONN_SNIFF, CYC_CONN_BLE);
 
+    ble_cache_init();
+
     /* Wi-Fi promiscuous mode otherwise hogs the RF; with BALANCE the BLE adv
      * is so rare that BLE 4.x scanners (Galaxy S6, generic USB BT dongle)
      * miss every window. iPhone catches it because its scan duty cycle is
@@ -632,15 +652,13 @@ void bt_stream_resume(void)
     ESP_LOGI(TAG, "BLE advertising restarted");
 }
 
-void bt_stream_publish_packet(const uint8_t *payload, uint16_t len, uint32_t sec, uint32_t usec)
+/* Shared by the live publish path and the disconnect-cache drain path —
+ * both need the exact same preformatted ITS5 frame. */
+static qframe_t *build_qframe(const uint8_t *payload, uint16_t len, uint32_t sec, uint32_t usec)
 {
-    if (!s_ready) return;
-    if (s_conn_handle == BLE_HS_CONN_HANDLE_NONE || !s_notify_enabled) return;
-    if (len > MAX_PAYLOAD) return;
-
     size_t total = HEADER_LEN + len;
     qframe_t *qf = (qframe_t *)malloc(sizeof(qframe_t) + total);
-    if (qf == NULL) return;
+    if (qf == NULL) return NULL;
     qf->total_len = (uint16_t)total;
 
     uint8_t *p = qf->data;
@@ -656,8 +674,48 @@ void bt_stream_publish_packet(const uint8_t *payload, uint16_t len, uint32_t sec
     p[12] = (uint8_t)(len        & 0xff);
     p[13] = (uint8_t)((len >>  8) & 0xff);
     if (len > 0) memcpy(p + HEADER_LEN, payload, len);
+    return qf;
+}
+
+void bt_stream_publish_packet(const uint8_t *payload, uint16_t len, uint32_t sec, uint32_t usec)
+{
+    if (!s_ready) return;
+    if (len > MAX_PAYLOAD) return;
+
+    if (s_conn_handle == BLE_HS_CONN_HANDLE_NONE || !s_notify_enabled) {
+        /* No live client to notify — used to just drop the packet here.
+         * Stash it in the disconnect cache instead (DENM-prioritised),
+         * see ble_cache.h / CLAUDE.md roadmap Punkt 3. */
+        ble_cache_store(payload, len, sec, usec);
+        return;
+    }
+
+    qframe_t *qf = build_qframe(payload, len, sec, usec);
+    if (qf == NULL) return;
 
     if (xQueueSend(s_queue, &qf, 0) != pdTRUE) {
         free(qf);  /* queue full — drop newest, keep stream live */
     }
+}
+
+static void cache_drain_emit(const uint8_t *payload, uint16_t len,
+                              uint32_t sec, uint32_t usec, void *ctx)
+{
+    (void)ctx;
+    qframe_t *qf = build_qframe(payload, len, sec, usec);
+    if (qf == NULL) return;
+    /* This is backlog data we specifically want delivered, not live-stream
+     * jitter we can afford to skip — block for a while rather than drop
+     * immediately if the real-time queue is momentarily full. */
+    if (xQueueSend(s_queue, &qf, pdMS_TO_TICKS(5000)) != pdTRUE) {
+        ESP_LOGW(TAG, "cache drain: queue still full after 5s, dropping cached frame");
+        free(qf);
+    }
+}
+
+static void cache_drain_task(void *arg)
+{
+    (void)arg;
+    ble_cache_drain(cache_drain_emit, NULL);
+    vTaskDelete(NULL);
 }
