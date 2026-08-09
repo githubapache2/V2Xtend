@@ -270,8 +270,8 @@ class _Handler(BaseHTTPRequestHandler):
 def start(port: int, node_id: str = "?") -> ThreadingHTTPServer:
     global _node_id
     _node_id = node_id
-    server   = ThreadingHTTPServer(("127.0.0.1", port), _Handler)
+    server   = ThreadingHTTPServer(("0.0.0.0", port), _Handler)
     t = threading.Thread(target=server.serve_forever, name="dashboard-http", daemon=True)
     t.start()
-    logging.info("dashboard listening on http://127.0.0.1:%d", port)
+    logging.info("dashboard listening on http://0.0.0.0:%d", port)
     return server
