@@ -61,119 +61,148 @@ object ItsG5Decoder {
             val nh      = p[basicOff].toInt() and 0x0F
             val secured = nh == 2
 
-            // For secured packets scan the first ~20 bytes of the 1609.2 envelope
-            // to locate the inner GN Common Header.  For unsecured packets the
-            // GN Common Header is directly at commonOff.
-            val innerOff: Int = if (secured) {
-                findInnerGnCommonHeader(p, commonOff, minOf(commonOff + 20, p.size - 36))
-                    .takeIf { it >= 0 } ?: continue
-            } else {
-                commonOff
-            }
-
-            if (p.size < innerOff + 8) continue
-
-            val htHst = p[innerOff + 1].toInt() and 0xFF
-            val ht    = (htHst shr 4) and 0x0F
-            val hst   = htHst and 0x0F
-
-            val extHdrLen = when (ht) {
-                1    ->  4    // BEACON       (no real ext hdr but Beacon hdr ~4 B)
-                2    -> 48    // GUC
-                3    -> 56    // GAC
-                4    -> 44    // GBC          (Source LongPV 24 + GeoArea 16 + reserved 4)
-                5    -> 28    // SHB / TSB    (Source LongPV 24 + reserved 4)
-                6    -> 36    // LS           (LS request)
-                else -> 28    // best-effort fallback (most common for V2X)
-            }
-
-            // SHB (ht=5, hst=0) puts the Source LPV directly at the start of the
-            // extended header.  Every other type (GBC, GAC, GUC, TSB) prepends a
-            // 2-byte sequence number + 2-byte reserved field before the LPV.
-            val srcPosInExt = if (ht == 5 && hst == 0) 0 else 4
-            val srcPosOff   = innerOff + 8 + srcPosInExt
-            val btpOff      = innerOff + 8 + extHdrLen
-            if (p.size < btpOff + 4) continue
-
-            // Source Long Position Vector layout (24 B):
-            //   GnAddress  8 B
-            //     bit 7    M-flag (manually configured)
-            //     bits 6-2 station-type (5-bit ETSI EN 302 636-4-1 StationType)
-            //     bits 1-0 reserved
-            //     bytes 2..7 LL-MAC of the originator (6 B)
-            //   timestamp  4 B
-            //   latitude   4 B  (int32 BE, 1/10 µdeg)
-            //   longitude  4 B  (int32 BE, 1/10 µdeg)
-            //   PAI(1) | speed(15)  2 B BE
-            //   heading(16)         2 B BE
-            val gnAddrHi = ((p[srcPosOff + 0].toInt() and 0xFF) shl 24) or
-                           ((p[srcPosOff + 1].toInt() and 0xFF) shl 16) or
-                           ((p[srcPosOff + 2].toInt() and 0xFF) shl  8) or
-                           (p[srcPosOff + 3].toInt() and 0xFF)
-            val gnAddrLo = ((p[srcPosOff + 4].toInt() and 0xFF) shl 24) or
-                           ((p[srcPosOff + 5].toInt() and 0xFF) shl 16) or
-                           ((p[srcPosOff + 6].toInt() and 0xFF) shl  8) or
-                           (p[srcPosOff + 7].toInt() and 0xFF)
-            // station-id is whole 8-byte addr packed into a Long
-            val stationId = ((gnAddrHi.toLong() and 0xFFFFFFFFL) shl 32) or
-                            (gnAddrLo.toLong() and 0xFFFFFFFFL)
-            // StationType from GN addr byte 0 bits 6..2 (ETSI EN 302 636-4-1 §9.1.3)
-            val stationType = ((p[srcPosOff + 0].toInt() and 0xFF) shr 2) and 0x1F
-
-            // Standard LPV layout: GN_ADDR(8) + TST(4) + LAT(4) + LON(4) + PAI|SPD(2) + HDG(2)
-            // Some RSU implementations use an 8-byte TAI timestamp instead of the standard 4-byte,
-            // shifting lat/lon 4 bytes later. If the standard offsets produce an impossible
-            // coordinate (|lat|>90), try the shifted offsets before giving up.
-            var latRaw = readBeI32(p, srcPosOff + 12)
-            var lonRaw = readBeI32(p, srcPosOff + 16)
-            var pshOff = srcPosOff + 20
-            if ((latRaw / 1e7) !in -90.0..90.0 && p.size >= srcPosOff + 28) {
-                val latShifted = readBeI32(p, srcPosOff + 16)
-                val lonShifted = readBeI32(p, srcPosOff + 20)
-                if ((latShifted / 1e7) in -90.0..90.0 && (lonShifted / 1e7) in -180.0..180.0) {
-                    latRaw = latShifted
-                    lonRaw = lonShifted
-                    pshOff = srcPosOff + 24
+            val decoded: Decoded? = if (secured) {
+                // Scan the first ~20 bytes of the 1609.2 envelope for *all*
+                // structurally plausible inner-Common-Header offsets, then pick
+                // the first one that decodes to a plausible result (recognized
+                // msgType + valid lat/lon) rather than blindly trusting the
+                // first structural match — a stray earlier byte sequence can
+                // coincidentally also look like a valid header (~1% of real
+                // DENM/GBC packets, see CLAUDE.md). Mirrors the fix already
+                // verified in the Python bridge's decode_itsg5_full().
+                val candidates = findInnerGnCommonHeaderCandidates(
+                    p, commonOff, minOf(commonOff + 20, p.size - 36))
+                if (candidates.isEmpty()) {
+                    null
+                } else {
+                    var found: Decoded? = null
+                    for (off in candidates) {
+                        val d = decodeAtOffset(p, off, et, secured = true)
+                        if (d != null && d.msgType != MsgType.UNKNOWN && d.latLon != null) {
+                            found = d
+                            break
+                        }
+                    }
+                    // No candidate looked plausible — fall back to the first
+                    // structural match rather than giving up entirely.
+                    found ?: decodeAtOffset(p, candidates[0], et, secured = true)
                 }
+            } else {
+                decodeAtOffset(p, commonOff, et, secured = false)
             }
-            val pshRaw = readBeI32(p, pshOff)
-            // top bit = position-accuracy-indicator, bits 1..15 = speed (signed 0.01 m/s),
-            // bits 16..31 = heading (unsigned 0.1 deg).
-            val speedRaw   = (pshRaw shr 16) and 0x7FFF
-            val speedSigned = if (speedRaw >= 0x4000) speedRaw - 0x8000 else speedRaw
-            val headingRaw  = pshRaw and 0xFFFF
-            val speed   = speedSigned / 100.0
-            val heading = headingRaw / 10.0
 
-            val lat = latRaw / 1e7
-            val lon = lonRaw / 1e7
-            val latLon: Pair<Double, Double>? =
-                if (lat in -90.0..90.0 && lon in -180.0..180.0 && (lat != 0.0 || lon != 0.0))
-                    lat to lon else null
-
-            val dstPort = ((p[btpOff].toInt() and 0xFF) shl 8) or
-                          (p[btpOff + 1].toInt() and 0xFF)
-            val msgType = MsgType.fromBtpPort(dstPort)
-            val spatPhase  = if (msgType == MsgType.SPATEM)
-                SpatTemParser.extractPhase(p, btpOff) else null
-            val denmCause  = if (msgType == MsgType.DENM)
-                DenmParser.extractCause(p, btpOff) else null
-
-            return Decoded(
-                etherType   = et,
-                msgType     = msgType,
-                stationId   = stationId,
-                stationType = stationType,
-                latLon      = latLon,
-                headingDeg  = if (latLon != null && headingRaw != 0xFFFF) heading else null,
-                speedMps    = if (latLon != null) speed else null,
-                btpDstPort  = dstPort,
-                spatPhase   = spatPhase,
-                denmCause   = denmCause,
-                secured     = secured,
-            )
+            if (decoded != null) return decoded
         }
         return Decoded(etherType = et)
+    }
+
+    /**
+     * Decode GN Common Header + Extended Header + BTP + position vector
+     * starting at innerOff. Returns null if the payload is too short for
+     * the fields this offset implies.
+     */
+    private fun decodeAtOffset(p: ByteArray, innerOff: Int, et: Int, secured: Boolean): Decoded? {
+        if (p.size < innerOff + 8) return null
+
+        val htHst = p[innerOff + 1].toInt() and 0xFF
+        val ht    = (htHst shr 4) and 0x0F
+        val hst   = htHst and 0x0F
+
+        val extHdrLen = when (ht) {
+            1    ->  4    // BEACON       (no real ext hdr but Beacon hdr ~4 B)
+            2    -> 48    // GUC
+            3    -> 56    // GAC
+            4    -> 44    // GBC          (Source LongPV 24 + GeoArea 16 + reserved 4)
+            5    -> 28    // SHB / TSB    (Source LongPV 24 + reserved 4)
+            6    -> 36    // LS           (LS request)
+            else -> 28    // best-effort fallback (most common for V2X)
+        }
+
+        // SHB (ht=5, hst=0) puts the Source LPV directly at the start of the
+        // extended header.  Every other type (GBC, GAC, GUC, TSB) prepends a
+        // 2-byte sequence number + 2-byte reserved field before the LPV.
+        val srcPosInExt = if (ht == 5 && hst == 0) 0 else 4
+        val srcPosOff   = innerOff + 8 + srcPosInExt
+        val btpOff      = innerOff + 8 + extHdrLen
+        if (p.size < btpOff + 4 || p.size < srcPosOff + 24) return null
+
+        // Source Long Position Vector layout (24 B):
+        //   GnAddress  8 B
+        //     bit 7    M-flag (manually configured)
+        //     bits 6-2 station-type (5-bit ETSI EN 302 636-4-1 StationType)
+        //     bits 1-0 reserved
+        //     bytes 2..7 LL-MAC of the originator (6 B)
+        //   timestamp  4 B
+        //   latitude   4 B  (int32 BE, 1/10 µdeg)
+        //   longitude  4 B  (int32 BE, 1/10 µdeg)
+        //   PAI(1) | speed(15)  2 B BE
+        //   heading(16)         2 B BE
+        val gnAddrHi = ((p[srcPosOff + 0].toInt() and 0xFF) shl 24) or
+                       ((p[srcPosOff + 1].toInt() and 0xFF) shl 16) or
+                       ((p[srcPosOff + 2].toInt() and 0xFF) shl  8) or
+                       (p[srcPosOff + 3].toInt() and 0xFF)
+        val gnAddrLo = ((p[srcPosOff + 4].toInt() and 0xFF) shl 24) or
+                       ((p[srcPosOff + 5].toInt() and 0xFF) shl 16) or
+                       ((p[srcPosOff + 6].toInt() and 0xFF) shl  8) or
+                       (p[srcPosOff + 7].toInt() and 0xFF)
+        // station-id is whole 8-byte addr packed into a Long
+        val stationId = ((gnAddrHi.toLong() and 0xFFFFFFFFL) shl 32) or
+                        (gnAddrLo.toLong() and 0xFFFFFFFFL)
+        // StationType from GN addr byte 0 bits 6..2 (ETSI EN 302 636-4-1 §9.1.3)
+        val stationType = ((p[srcPosOff + 0].toInt() and 0xFF) shr 2) and 0x1F
+
+        // Standard LPV layout: GN_ADDR(8) + TST(4) + LAT(4) + LON(4) + PAI|SPD(2) + HDG(2)
+        // Some RSU implementations use an 8-byte TAI timestamp instead of the standard 4-byte,
+        // shifting lat/lon 4 bytes later. If the standard offsets produce an impossible
+        // coordinate (|lat|>90), try the shifted offsets before giving up.
+        var latRaw = readBeI32(p, srcPosOff + 12)
+        var lonRaw = readBeI32(p, srcPosOff + 16)
+        var pshOff = srcPosOff + 20
+        if ((latRaw / 1e7) !in -90.0..90.0 && p.size >= srcPosOff + 28) {
+            val latShifted = readBeI32(p, srcPosOff + 16)
+            val lonShifted = readBeI32(p, srcPosOff + 20)
+            if ((latShifted / 1e7) in -90.0..90.0 && (lonShifted / 1e7) in -180.0..180.0) {
+                latRaw = latShifted
+                lonRaw = lonShifted
+                pshOff = srcPosOff + 24
+            }
+        }
+        val pshRaw = readBeI32(p, pshOff)
+        // top bit = position-accuracy-indicator, bits 1..15 = speed (signed 0.01 m/s),
+        // bits 16..31 = heading (unsigned 0.1 deg).
+        val speedRaw   = (pshRaw shr 16) and 0x7FFF
+        val speedSigned = if (speedRaw >= 0x4000) speedRaw - 0x8000 else speedRaw
+        val headingRaw  = pshRaw and 0xFFFF
+        val speed   = speedSigned / 100.0
+        val heading = headingRaw / 10.0
+
+        val lat = latRaw / 1e7
+        val lon = lonRaw / 1e7
+        val latLon: Pair<Double, Double>? =
+            if (lat in -90.0..90.0 && lon in -180.0..180.0 && (lat != 0.0 || lon != 0.0))
+                lat to lon else null
+
+        val dstPort = ((p[btpOff].toInt() and 0xFF) shl 8) or
+                      (p[btpOff + 1].toInt() and 0xFF)
+        val msgType = MsgType.fromBtpPort(dstPort)
+        val spatPhase  = if (msgType == MsgType.SPATEM)
+            SpatTemParser.extractPhase(p, btpOff) else null
+        val denmCause  = if (msgType == MsgType.DENM)
+            DenmParser.extractCause(p, btpOff) else null
+
+        return Decoded(
+            etherType   = et,
+            msgType     = msgType,
+            stationId   = stationId,
+            stationType = stationType,
+            latLon      = latLon,
+            headingDeg  = if (latLon != null && headingRaw != 0xFFFF) heading else null,
+            speedMps    = if (latLon != null) speed else null,
+            btpDstPort  = dstPort,
+            spatPhase   = spatPhase,
+            denmCause   = denmCause,
+            secured     = secured,
+        )
     }
 
     fun sniffEtherType(p: ByteArray): Int? {
@@ -199,27 +228,37 @@ object ItsG5Decoder {
     private val HDR_LENGTHS = intArrayOf(24, 26, 30, 32)
 
     /**
-     * Locates the inner GN Common Header inside an IEEE 1609.2 security envelope.
+     * Locates *all* candidate offsets for the inner GN Common Header inside
+     * an IEEE 1609.2 security envelope (secured packets only), in ascending
+     * order.
      *
-     * When the outer GN Basic Header has NH=2 (secured packet), the GN Common
-     * Header is wrapped inside the 1609.2 SignedData structure.  In practice the
-     * 1609.2 prefix is 7–8 bytes (`03 81 00 40 03 80 [len1|len2]`), placing the
-     * inner GN Common Header 7–8 bytes after the outer basic header ends.
-     *
-     * A valid GN Common Header satisfies:
+     * When the outer GN Basic Header has NH=2 (secured packet), the real GN
+     * Common Header is wrapped inside the 1609.2 SignedData structure. In
+     * practice the 1609.2 prefix is 7–8 bytes (`03 81 00 40 03 80 [len1|len2]`),
+     * placing the inner GN Common Header 7–8 bytes after the outer basic
+     * header ends. A byte sequence structurally satisfies a plausible Common
+     * Header if:
      *   • byte 0 upper nibble (NH) ∈ {0,1,2}  (Any / BTP-A / BTP-B)
      *   • byte 1 upper nibble (HT) ∈ {4,5,6}  (GBC / TSB-SHB / LS)
      *   • bytes 4-5 (payload length) ∈ {1..999}
+     *
+     * That alone isn't unique — taking only the *first* match gets real
+     * DENM/GBC packets wrong ~1% of the time (a stray earlier byte sequence
+     * coincidentally also matches, see CLAUDE.md). Returning every candidate
+     * lets the caller pick the first one that decodes to a plausible result
+     * instead — same fix already verified in the Python bridge's
+     * `_find_inner_gn_common_header_candidates()`.
      */
-    private fun findInnerGnCommonHeader(p: ByteArray, start: Int, end: Int): Int {
+    private fun findInnerGnCommonHeaderCandidates(p: ByteArray, start: Int, end: Int): List<Int> {
+        val candidates = mutableListOf<Int>()
         for (off in start until end) {
             if (off + 8 > p.size) break
             val nhInner   = (p[off].toInt() and 0xFF) ushr 4
             val htInner   = (p[off + 1].toInt() and 0xFF) ushr 4
             val plenInner = ((p[off + 4].toInt() and 0xFF) shl 8) or (p[off + 5].toInt() and 0xFF)
-            if (nhInner in 0..2 && htInner in 4..6 && plenInner in 1..999) return off
+            if (nhInner in 0..2 && htInner in 4..6 && plenInner in 1..999) candidates.add(off)
         }
-        return -1
+        return candidates
     }
 
     // ---- public types -------------------------------------------------

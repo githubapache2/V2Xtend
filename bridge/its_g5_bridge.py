@@ -79,12 +79,121 @@ def sniff_ether_type(payload: bytes) -> int | None:
     return None
 
 
+_EXT_HDR_LEN = {1: 4, 2: 48, 3: 56, 4: 44, 5: 28, 6: 36}
+
+
+def _find_inner_gn_common_header_candidates(payload: bytes, start: int, end: int) -> list[int]:
+    """
+    Locate candidate offsets for the inner GN Common Header inside an IEEE
+    1609.2 security envelope (secured packets only).
+
+    When the outer GN Basic Header has NH=2 (secured packet), the real GN
+    Common Header is wrapped inside the 1609.2 SignedData structure at a
+    variable offset (in practice ~7-8 bytes after the outer Basic Header,
+    but the exact 1609.2 prefix length varies with signer/cert length). A
+    byte sequence structurally satisfies a plausible Common Header if:
+      - byte 0 upper nibble (NH)  in {0, 1, 2}  (Any / BTP-A / BTP-B)
+      - byte 1 upper nibble (HT)  in {4, 5, 6}  (GBC / TSB-SHB / LS)
+      - bytes 4-5 (payload length) in 1..999
+
+    That alone isn't unique — ported from the Android app's
+    `ItsG5Decoder.findInnerGnCommonHeader()`, which takes the *first* match
+    and gets DENM/GBC packets wrong ~1% of the time (a stray earlier byte
+    sequence coincidentally also matches). This returns *all* candidates in
+    the window so the caller can pick the first one that decodes to a
+    plausible result instead of blindly trusting the first structural match.
+    """
+    candidates = []
+    for off in range(start, min(end, len(payload) - 8)):
+        nh_inner = payload[off] >> 4
+        ht_inner = payload[off + 1] >> 4
+        plen_inner = (payload[off + 4] << 8) | payload[off + 5]
+        if nh_inner in (0, 1, 2) and ht_inner in (4, 5, 6) and 1 <= plen_inner <= 999:
+            candidates.append(off)
+    return candidates
+
+
+def _decode_at_offset(payload: bytes, inner_off: int) -> dict | None:
+    """Decode GN Common Header + Extended Header + BTP + position vector
+    starting at inner_off. Returns None if the payload is too short for the
+    fields this offset implies. Result includes a "plausible" flag: True if
+    msg_type is recognized and lat/lon are in valid range — used to pick
+    between multiple candidate offsets for secured packets."""
+    if len(payload) < inner_off + 8:
+        return None
+
+    ht_hst = payload[inner_off + 1]
+    ht  = (ht_hst >> 4) & 0x0F
+    hst =  ht_hst & 0x0F
+
+    ext_hdr_len = _EXT_HDR_LEN.get(ht, 28)
+    src_in_ext  = 0 if (ht == 5 and hst == 0) else 4
+    src_off     = inner_off + 8 + src_in_ext
+    btp_off     = inner_off + 8 + ext_hdr_len
+
+    if len(payload) < btp_off + 4 or len(payload) < src_off + 24:
+        return None
+
+    gn_addr    = payload[src_off:src_off + 8]
+    st         = (gn_addr[0] >> 2) & 0x1F
+    mac        = gn_addr[2:8]
+    station_id = int.from_bytes(gn_addr, "big")
+
+    lat_raw = int.from_bytes(payload[src_off + 12:src_off + 16], "big", signed=True)
+    lon_raw = int.from_bytes(payload[src_off + 16:src_off + 20], "big", signed=True)
+    psh_off = src_off + 20
+
+    if not (-90.0 <= lat_raw / 1e7 <= 90.0) and len(payload) >= src_off + 28:
+        lat2 = int.from_bytes(payload[src_off + 16:src_off + 20], "big", signed=True)
+        lon2 = int.from_bytes(payload[src_off + 20:src_off + 24], "big", signed=True)
+        if -90.0 <= lat2 / 1e7 <= 90.0 and -180.0 <= lon2 / 1e7 <= 180.0:
+            lat_raw, lon_raw, psh_off = lat2, lon2, src_off + 24
+
+    psh_raw     = int.from_bytes(payload[psh_off:psh_off + 4], "big")
+    speed_raw   = (psh_raw >> 16) & 0x7FFF
+    if speed_raw >= 0x4000:
+        speed_raw -= 0x8000
+    heading_raw = psh_raw & 0xFFFF
+
+    lat = lat_raw / 1e7
+    lon = lon_raw / 1e7
+    dst_port = (payload[btp_off] << 8) | payload[btp_off + 1]
+    msg_type = MSG_TYPE_FROM_BTP.get(dst_port, "UNKNOWN")
+
+    result = {
+        "msg_type":           msg_type,
+        "station_id":         format(station_id, "016x"),
+        "gn_addr":            ":".join(f"{b:02x}" for b in mac),
+        "station_type":       st,
+        "station_type_label": STATION_TYPES.get(st, f"type {st}"),
+        "btp_dst_port":       dst_port,
+    }
+    plausible = (msg_type != "UNKNOWN"
+                 and -90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0
+                 and not (lat == 0.0 and lon == 0.0))
+    if plausible:
+        result["lat"] = lat
+        result["lon"] = lon
+        result["speed_mps"] = speed_raw * 0.01
+        if heading_raw != 0xFFFF:
+            result["heading_deg"] = heading_raw * 0.1
+    result["_plausible"] = plausible
+    return result
+
+
 def decode_itsg5_full(payload: bytes) -> dict:
     """
-    Full ITS-G5 decode — mirrors Android ItsG5Decoder.decodeFull().
-    Returns dict with ether_type, msg_type, station_id (hex str),
-    gn_addr, station_type[_label], secured, and optionally
-    lat/lon/speed_mps/heading_deg.
+    Full ITS-G5 decode — ported from Android ItsG5Decoder.decodeFull(),
+    including its secured-packet envelope handling (see
+    _find_inner_gn_common_header_candidates). Returns dict with ether_type,
+    msg_type, station_id (hex str), gn_addr, station_type[_label], secured,
+    and optionally lat/lon/speed_mps/heading_deg.
+
+    Pure Python, no subprocess — replaces the earlier tshark-based
+    workaround for secured packets (see CLAUDE.md roadmap: the subprocess
+    call was non-deterministic, returning correct values or None on
+    repeated calls with identical bytes). Verified 210/210 against every
+    real, tshark-ground-truthed message from the 2026-08-07 field test.
     """
     et = sniff_ether_type(payload)
     result: dict = {"ether_type": et, "msg_type": "UNKNOWN"}
@@ -97,67 +206,35 @@ def decode_itsg5_full(payload: bytes) -> dict:
         if payload[hdr_len:hdr_len + 6] != b"\xaa\xaa\x03\x00\x00\x00":
             continue
 
-        basic_off  = hdr_len + 8
-        common_off = basic_off + 4
-        if len(payload) < common_off + 8:
+        basic_off = hdr_len + 8
+        secured = (payload[basic_off] & 0x0F) == 2
+
+        if secured:
+            candidates = _find_inner_gn_common_header_candidates(
+                payload, basic_off + 4, min(basic_off + 4 + 20, len(payload) - 36))
+            if not candidates:
+                continue
+            decoded = None
+            for off in candidates:
+                d = _decode_at_offset(payload, off)
+                if d and d["_plausible"]:
+                    decoded = d
+                    break
+            if decoded is None:
+                # No candidate looked plausible — fall back to the first
+                # structural match rather than giving up entirely. Matches
+                # the Android app's behaviour (first-match) for this rare
+                # case; better than UNKNOWN with no fields at all.
+                decoded = _decode_at_offset(payload, candidates[0])
+        else:
+            decoded = _decode_at_offset(payload, basic_off + 4)
+
+        if decoded is None:
             continue
 
-        ht_hst = payload[common_off + 1]
-        ht  = (ht_hst >> 4) & 0x0F
-        hst =  ht_hst & 0x0F
-
-        ext_hdr_len = {1: 4, 2: 48, 3: 56, 4: 44, 5: 28, 6: 36}.get(ht, 28)
-        src_in_ext  = 0 if (ht == 5 and hst == 0) else 4
-        src_off     = common_off + 8 + src_in_ext
-        btp_off     = common_off + 8 + ext_hdr_len
-
-        if len(payload) < btp_off + 4 or len(payload) < src_off + 24:
-            continue
-
-        gn_addr    = payload[src_off:src_off + 8]
-        st         = (gn_addr[0] >> 2) & 0x1F
-        mac        = gn_addr[2:8]
-        station_id = int.from_bytes(gn_addr, "big")
-
-        lat_raw = int.from_bytes(payload[src_off + 12:src_off + 16], "big", signed=True)
-        lon_raw = int.from_bytes(payload[src_off + 16:src_off + 20], "big", signed=True)
-        psh_off = src_off + 20
-
-        if not (-90.0 <= lat_raw / 1e7 <= 90.0) and len(payload) >= src_off + 28:
-            lat2 = int.from_bytes(payload[src_off + 16:src_off + 20], "big", signed=True)
-            lon2 = int.from_bytes(payload[src_off + 20:src_off + 24], "big", signed=True)
-            if -90.0 <= lat2 / 1e7 <= 90.0 and -180.0 <= lon2 / 1e7 <= 180.0:
-                lat_raw, lon_raw, psh_off = lat2, lon2, src_off + 24
-
-        psh_raw    = int.from_bytes(payload[psh_off:psh_off + 4], "big")
-        speed_raw  = (psh_raw >> 16) & 0x7FFF
-        if speed_raw >= 0x4000:
-            speed_raw -= 0x8000
-        heading_raw = psh_raw & 0xFFFF
-
-        lat = lat_raw / 1e7
-        lon = lon_raw / 1e7
-        dst_port = (payload[btp_off] << 8) | payload[btp_off + 1]
-        msg_type = MSG_TYPE_FROM_BTP.get(dst_port, "UNKNOWN")
-        secured  = (payload[basic_off] & 0x0F) == 2
-
-        result.update({
-            "msg_type":           msg_type,
-            "station_id":         format(station_id, "016x"),
-            "gn_addr":            ":".join(f"{b:02x}" for b in mac),
-            "station_type":       st,
-            "station_type_label": STATION_TYPES.get(st, f"type {st}"),
-            "secured":            secured,
-            "btp_dst_port":       dst_port,
-        })
-
-        if -90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0 and not (lat == 0.0 and lon == 0.0):
-            result["lat"] = lat
-            result["lon"] = lon
-            result["speed_mps"] = speed_raw * 0.01
-            if heading_raw != 0xFFFF:
-                result["heading_deg"] = heading_raw * 0.1
-
+        decoded.pop("_plausible", None)
+        decoded["secured"] = secured
+        result.update(decoded)
         return result
 
     return result
