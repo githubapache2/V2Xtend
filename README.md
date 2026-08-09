@@ -105,9 +105,11 @@ The board supports 5.9 GHz IEEE 802.11p out of the box; the firmware drives it a
 
 ## Install
 
-### Windows — one-click installer (easiest)
+### Pre-built firmware + app (no installer yet)
 
-> ⚠️ **Coming soon for this fork** — no installer has been published under this repo's [Releases](../../releases) page yet. Either use the [manual build steps](#manual-build-from-source) below, or grab the installer from [upstream (pit711/V2X2MAP)](https://github.com/pit711/V2X2MAP/releases/latest) if you don't specifically need this fork's BLE-cache/decoder fixes.
+[**Releases**](../../releases/latest) has a firmware zip (bootloader + partition table + app binary + `flash_args`, flash with `esptool.py write_flash @flash_args`) and a debug-signed Android APK. No one-click Windows installer yet for this fork — use these pre-built files with `esptool`/`adb`, or the [manual build steps](#manual-build-from-source) below. (Upstream's own installer is at [pit711/V2X2MAP releases](https://github.com/pit711/V2X2MAP/releases/latest) if you don't specifically need this fork's fixes.)
+
+### Windows — one-click installer (not yet available for this fork)
 
 1. Download **ITS-G5 Receiver Setup** from the [Releases page](../../releases/latest)
 2. Connect the ESP32-C5 via USB
