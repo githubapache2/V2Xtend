@@ -461,6 +461,10 @@ def main():
                         f"Default from config or {DEFAULT_BROKER}")
     p.add_argument("--no-mqtt", action="store_true",
                    help="parse only, don't publish (for testing)")
+    p.add_argument("--mqtt-autostart", action="store_true",
+                   help="start with MQTT publishing already enabled, instead of "
+                        "requiring a manual toggle in the dashboard (use for "
+                        "unattended/headless operation, e.g. a systemd service)")
     p.add_argument("--reset-on-start", action="store_true",
                    help="pulse RTS to reboot the device on first connect")
     p.add_argument("--reconnect-delay", type=float, default=3.0,
@@ -532,8 +536,9 @@ def main():
     packet_topic = f"its/{node_id}/packet"
     status_topic = f"its/{node_id}/status"
 
-    # MQTT publishing starts disabled — user activates from dashboard
-    dashboard_server.set_mqtt_state(enabled=False, available=False)
+    # MQTT publishing starts disabled unless explicitly auto-started — normally
+    # the user activates it from the dashboard
+    dashboard_server.set_mqtt_state(enabled=args.mqtt_autostart, available=False)
 
     connected_count = [0]
     count_lock      = threading.Lock()
