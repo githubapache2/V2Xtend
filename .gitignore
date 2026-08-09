@@ -47,3 +47,13 @@ blelog.txt
 *.pem
 
 website/
+
+# Enthält Klartext-SSH-Passwort für den RPi, siehe Sicherheitshinweis darin
+CLAUDE.md
+oldCLAUDE.md
+
+# Claude Code / SpecStory local tooling state — not project source,
+# .specstory in particular contains full session transcripts (which quote
+# CLAUDE.md verbatim, incl. the RPi password above)
+.claude/
+.specstory/
