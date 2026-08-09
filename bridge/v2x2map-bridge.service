@@ -1,0 +1,18 @@
+[Unit]
+Description=V2X2MAP ITS-G5 Bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=miro
+WorkingDirectory=/home/miro/V2X2MAP/bridge
+Environment="PATH=/home/miro/venv/bin:/usr/bin:/bin"
+ExecStart=/home/miro/V2X2MAP/bridge/run_bridge.sh
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
