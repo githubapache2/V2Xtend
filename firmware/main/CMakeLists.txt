@@ -3,6 +3,7 @@ idf_component_register(
         "main.c"
         "cmd_sniffer.c"
         "cmd_pcap.c"
+        "cmd_replay.c"
         "ble_cache.c"
         "msg_classify.c"
         "config.c"

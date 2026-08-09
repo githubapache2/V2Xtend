@@ -17,6 +17,7 @@
 
 #include "cmd_sniffer.h"
 #include "cmd_pcap.h"
+#include "cmd_replay.h"
 #include "config.h"
 #include "ethernet.h"
 #include "led.h"
@@ -153,6 +154,7 @@ void app_main(void)
 #endif
     register_sniffer_cmd();
     register_pcap_cmd();
+    register_replay_cmd();
 
     config_register_commands();
 
