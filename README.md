@@ -1,4 +1,4 @@
-**V2X2MAP** is an open-source receiver and live map for **ITS-G5 / V2X** traffic — the 5.9 GHz IEEE 802.11p messages cars and roadside infrastructure send to coordinate.
+**V2Xtend** is an open-source receiver and live map for **ITS-G5 / V2X** traffic — the 5.9 GHz IEEE 802.11p messages cars and roadside infrastructure send to coordinate. It's a fork of [V2X2MAP](https://github.com/pit711/V2X2MAP), see [Acknowledgements](#acknowledgements) for what's new here.
 
 Plug a $20 ESP32-C5 dev board into your phone, drive somewhere with modern infrastructure, watch the CAMs, DENMs and SPATEMs roll in.
 
@@ -17,7 +17,20 @@ Plug a $20 ESP32-C5 dev board into your phone, drive somewhere with modern infra
 
 ## Acknowledgements
 
-Big thanks to the team behind [**opentrafficmap/its-g5-receiver-firmware**](https://codeberg.org/opentrafficmap/its-g5-receiver-firmware) on Codeberg — without their foundational work this project would not exist. V2X2MAP is a fork of their firmware adapted for the Waveshare ESP32-C5-WIFI6-KIT devboard, extended with BLE streaming, the Android app, and the Windows installer.
+This project, **V2Xtend**, is a fork of [**pit711/V2X2MAP**](https://github.com/pit711/V2X2MAP) — the Android app, the BLE stack, the Python bridge and the Windows installer all come from that project; see [What's different from V2X2MAP](#whats-different-from-v2x2map) below for what this fork adds on top.
+
+V2X2MAP itself is, in turn, a fork of the firmware from the team behind [**opentrafficmap/its-g5-receiver-firmware**](https://codeberg.org/opentrafficmap/its-g5-receiver-firmware) on Codeberg — without their foundational work neither project would exist. V2X2MAP adapted it for the Waveshare ESP32-C5-WIFI6-KIT devboard and extended it with BLE streaming, the Android app, and the Windows installer.
+
+---
+
+## What's different from V2X2MAP
+
+This fork keeps everything from upstream and adds:
+
+- **BLE disconnect-tolerant cache with DENM priority** — packets received while the phone is disconnected from the C5 over BLE used to be dropped silently. They're now buffered (24 slots) and delivered the moment the connection comes back, with DENM (hazard) messages protected from eviction ahead of routine CAM traffic. Verified with zero packet loss across disconnects of several minutes, and correct DENM-priority behavior under a deliberate buffer-overflow test.
+- **Fixed decoding of signed (secured) packets** — practically every real CAM/DENM on the air is cryptographically signed (IEEE 1609.2). Both the Android app's live decoder and the Python bridge used to misread these as garbage (message type `UNKNOWN`, impossible GPS coordinates/speed/heading). Fixed in both codebases, verified against 200+ real, ground-truthed field messages.
+- **Fixed a latent SPI pin conflict** — the firmware's W5500 Ethernet support (unused by this fork, which relies on USB + BLE) shared GPIO pins with the SD-card interface.
+- Various fixes needed to get the firmware building at all against current ESP-IDF (v5.5.4) headers.
 
 ---
 
@@ -30,7 +43,7 @@ Modern cars and roadside units (RSUs) broadcast standardised safety messages on 
 - **SPATEM** — Signal Phase + Timing: traffic-light countdown
 - **MAPEM** — intersection geometry
 
-V2X2MAP captures these in promiscuous mode, decodes the GeoNetworking headers locally, and plots each message as a colour-coded marker on an OSM map. No cloud round-trip required — everything runs on the phone.
+V2Xtend captures these in promiscuous mode, decodes the GeoNetworking headers locally, and plots each message as a colour-coded marker on an OSM map. No cloud round-trip required — everything runs on the phone.
 
 ---
 
@@ -96,6 +109,8 @@ The board supports 5.9 GHz IEEE 802.11p out of the box; the firmware drives it a
 
 ### Windows — one-click installer (easiest)
 
+> ⚠️ **Coming soon for this fork** — no installer has been published under this repo's [Releases](../../releases) page yet. Either use the [manual build steps](#manual-build-from-source) below, or grab the installer from [upstream (pit711/V2X2MAP)](https://github.com/pit711/V2X2MAP/releases/latest) if you don't specifically need this fork's BLE-cache/decoder fixes.
+
 1. Download **ITS-G5 Receiver Setup** from the [Releases page](../../releases/latest)
 2. Connect the ESP32-C5 via USB
 3. Run the EXE and follow three steps:
@@ -129,7 +144,7 @@ The board supports 5.9 GHz IEEE 802.11p out of the box; the firmware drives it a
 # once per shell — activate ESP-IDF toolchain
 . .\esp-idf\export.ps1
 
-cd V2X2MAP\firmware
+cd V2Xtend\firmware
 idf.py build
 idf.py -p COMx -b 921600 flash
 ```
@@ -140,12 +155,12 @@ idf.py -p COMx -b 921600 flash
 <summary>Android app</summary>
 
 ```powershell
-cd V2X2MAP\android
+cd V2Xtend\android
 .\gradlew.bat assembleDebug
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
-Or open `V2X2MAP/android/` in Android Studio. Min SDK 24 (Android 7.0).
+Or open `V2Xtend/android/` in Android Studio. Min SDK 24 (Android 7.0).
 
 </details>
 
@@ -153,7 +168,7 @@ Or open `V2X2MAP/android/` in Android Studio. Min SDK 24 (Android 7.0).
 <summary>Python bridge + dashboard</summary>
 
 ```powershell
-cd V2X2MAP\bridge
+cd V2Xtend\bridge
 python its_g5_bridge.py --port COMx --node-id <mac-without-colons>
 ```
 
@@ -165,10 +180,10 @@ Dashboard at `http://127.0.0.1:8080`. Default MQTT broker: `mqtts://cits1.opentr
 
 ## Support
 
-V2X2MAP is open-source and free. If it's useful to you, a small tip keeps it going:
+V2Xtend is open-source and free, and builds directly on the work of [pit711](https://github.com/pit711)'s V2X2MAP (see [Acknowledgements](#acknowledgements)). The tip jars below are the *original* upstream author's, not this fork's — if V2X2MAP's foundation is what's useful to you, this is where to send it:
 
-- ☕ **Ko-fi:** https://ko-fi.com/711it
-- 💸 **PayPal:** https://paypal.me/711IT
+- ☕ **Ko-fi (original V2X2MAP author):** https://ko-fi.com/711it
+- 💸 **PayPal (original V2X2MAP author):** https://paypal.me/711IT
 
 ---
 
