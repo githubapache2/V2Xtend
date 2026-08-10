@@ -54,7 +54,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var locationOverlay: MyLocationNewOverlay
     private lateinit var fused: FusedLocationProviderClient
     private lateinit var markers: MarkerLayer
-    private lateinit var roadworksLayer: RoadworksLayer
+    private lateinit var roadworksLayer: AutobahnPointLayer
+    private lateinit var closuresLayer: AutobahnPointLayer
+    private lateinit var trafficWarningsLayer: AutobahnPointLayer
+    private lateinit var parkingLayer: AutobahnPointLayer
+    private lateinit var chargingLayer: AutobahnPointLayer
     private lateinit var dwdWarningsLayer: DwdWarningsLayer
     private lateinit var geiger: GeigerCounter
 
@@ -158,11 +162,19 @@ class MainActivity : AppCompatActivity() {
         ownTrackEnabled = Prefs.ownTrackEnabled(this)
         compassMode     = Prefs.compassMode(this)
         markers = MarkerLayer(binding.map, this)
-        roadworksLayer = RoadworksLayer(binding.map, this)
+        roadworksLayer       = AutobahnPointLayer(binding.map, this, R.drawable.ic_marker_roadwork, 0xFFE8A33D.toInt())
+        closuresLayer        = AutobahnPointLayer(binding.map, this, R.drawable.ic_marker_roadwork, 0xFFD32F2F.toInt())
+        trafficWarningsLayer = AutobahnPointLayer(binding.map, this, R.drawable.ic_marker_dot,      0xFF9C27B0.toInt())
+        parkingLayer         = AutobahnPointLayer(binding.map, this, R.drawable.ic_marker_dot,      0xFF43A047.toInt())
+        chargingLayer        = AutobahnPointLayer(binding.map, this, R.drawable.ic_marker_dot,      0xFF00ACC1.toInt())
         dwdWarningsLayer = DwdWarningsLayer(binding.map, this)
         geiger  = GeigerCounter(this)
         if (Prefs.audioFeedback(this)) geiger.start()
         if (Prefs.roadworksEnabled(this)) refreshRoadworks()
+        if (Prefs.closuresEnabled(this)) refreshClosures()
+        if (Prefs.trafficWarningsEnabled(this)) refreshTrafficWarnings()
+        if (Prefs.parkingEnabled(this)) refreshParking()
+        if (Prefs.chargingEnabled(this)) refreshCharging()
         if (Prefs.dwdWarningsEnabled(this)) refreshDwdWarnings()
 
         setSupportActionBar(binding.toolbar)
@@ -346,10 +358,11 @@ class MainActivity : AppCompatActivity() {
         // Traffic-data overlays (Redesign Phase 2, Punkt 2). Independent
         // on/off toggles, not a radio choice — that's why ChoiceSection alone
         // (the only section kind that existed before roadworks) wasn't
-        // enough and ToggleSection was added, see LayerPickerSheet.kt. DWD
-        // warnings (second source) reuse that same ToggleSection/ToggleItem
-        // shape unchanged — just one more item in this list, no further
-        // LayerPickerSheet changes needed this time.
+        // enough and ToggleSection was added, see LayerPickerSheet.kt. Every
+        // source since (DWD, and now the other four Autobahn-API types)
+        // reuses that same ToggleSection/ToggleItem shape unchanged — each
+        // is just one more item in this list, no further LayerPickerSheet
+        // changes needed since roadworks.
         val overlaysSection = LayerPickerSheet.ToggleSection(
             title = getString(R.string.map_layer_section_overlays),
             items = listOf(
@@ -360,6 +373,38 @@ class MainActivity : AppCompatActivity() {
                 ) { on ->
                     Prefs.setRoadworksEnabled(this, on)
                     if (on) refreshRoadworks() else roadworksLayer.clear()
+                },
+                LayerPickerSheet.ToggleItem(
+                    key     = "CLOSURES",
+                    label   = getString(R.string.overlay_closures),
+                    checked = Prefs.closuresEnabled(this),
+                ) { on ->
+                    Prefs.setClosuresEnabled(this, on)
+                    if (on) refreshClosures() else closuresLayer.clear()
+                },
+                LayerPickerSheet.ToggleItem(
+                    key     = "TRAFFIC_WARNINGS",
+                    label   = getString(R.string.overlay_traffic_warnings),
+                    checked = Prefs.trafficWarningsEnabled(this),
+                ) { on ->
+                    Prefs.setTrafficWarningsEnabled(this, on)
+                    if (on) refreshTrafficWarnings() else trafficWarningsLayer.clear()
+                },
+                LayerPickerSheet.ToggleItem(
+                    key     = "PARKING_LORRY",
+                    label   = getString(R.string.overlay_parking_lorry),
+                    checked = Prefs.parkingEnabled(this),
+                ) { on ->
+                    Prefs.setParkingEnabled(this, on)
+                    if (on) refreshParking() else parkingLayer.clear()
+                },
+                LayerPickerSheet.ToggleItem(
+                    key     = "CHARGING_STATIONS",
+                    label   = getString(R.string.overlay_charging_stations),
+                    checked = Prefs.chargingEnabled(this),
+                ) { on ->
+                    Prefs.setChargingEnabled(this, on)
+                    if (on) refreshCharging() else chargingLayer.clear()
                 },
                 LayerPickerSheet.ToggleItem(
                     key     = "DWD_WARNINGS",
@@ -381,8 +426,31 @@ class MainActivity : AppCompatActivity() {
      *  fixed road list rather than "whatever's on screen" for now. */
     private fun refreshRoadworks() {
         lifecycleScope.launch {
-            val roadworks = AutobahnApi.fetchRoadworks(ROADWORK_ROAD_IDS)
-            roadworksLayer.show(roadworks)
+            roadworksLayer.show(AutobahnApi.fetchRoadworks(ROADWORK_ROAD_IDS))
+        }
+    }
+
+    private fun refreshClosures() {
+        lifecycleScope.launch {
+            closuresLayer.show(AutobahnApi.fetchClosures(ROADWORK_ROAD_IDS))
+        }
+    }
+
+    private fun refreshTrafficWarnings() {
+        lifecycleScope.launch {
+            trafficWarningsLayer.show(AutobahnApi.fetchTrafficWarnings(ROADWORK_ROAD_IDS))
+        }
+    }
+
+    private fun refreshParking() {
+        lifecycleScope.launch {
+            parkingLayer.show(AutobahnApi.fetchParkingLorry(ROADWORK_ROAD_IDS))
+        }
+    }
+
+    private fun refreshCharging() {
+        lifecycleScope.launch {
+            chargingLayer.show(AutobahnApi.fetchChargingStations(ROADWORK_ROAD_IDS))
         }
     }
 

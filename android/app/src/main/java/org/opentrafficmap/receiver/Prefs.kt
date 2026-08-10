@@ -27,6 +27,10 @@ object Prefs {
     private const val KEY_COMPASS_MODE    = "compass_mode"
     private const val KEY_ROADWORKS_ENABLED = "roadworks_enabled"
     private const val KEY_DWD_WARNINGS_ENABLED = "dwd_warnings_enabled"
+    private const val KEY_CLOSURES_ENABLED = "closures_enabled"
+    private const val KEY_TRAFFIC_WARNINGS_ENABLED = "traffic_warnings_enabled"
+    private const val KEY_PARKING_ENABLED = "parking_enabled"
+    private const val KEY_CHARGING_ENABLED = "charging_enabled"
 
     const val DEFAULT_MARKER_TTL_MIN = 60   // 1 hour
     private val OLD_DEFAULTS = setOf(5, 1440) // values that should be migrated to new default
@@ -147,6 +151,30 @@ object Prefs {
 
     fun setDwdWarningsEnabled(ctx: Context, on: Boolean) =
         prefs(ctx).edit { putBoolean(KEY_DWD_WARNINGS_ENABLED, on) }
+
+    fun closuresEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_CLOSURES_ENABLED, false)
+
+    fun setClosuresEnabled(ctx: Context, on: Boolean) =
+        prefs(ctx).edit { putBoolean(KEY_CLOSURES_ENABLED, on) }
+
+    fun trafficWarningsEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_TRAFFIC_WARNINGS_ENABLED, false)
+
+    fun setTrafficWarningsEnabled(ctx: Context, on: Boolean) =
+        prefs(ctx).edit { putBoolean(KEY_TRAFFIC_WARNINGS_ENABLED, on) }
+
+    fun parkingEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_PARKING_ENABLED, false)
+
+    fun setParkingEnabled(ctx: Context, on: Boolean) =
+        prefs(ctx).edit { putBoolean(KEY_PARKING_ENABLED, on) }
+
+    fun chargingEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_CHARGING_ENABLED, false)
+
+    fun setChargingEnabled(ctx: Context, on: Boolean) =
+        prefs(ctx).edit { putBoolean(KEY_CHARGING_ENABLED, on) }
 
     private fun prefs(ctx: Context) =
         ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
