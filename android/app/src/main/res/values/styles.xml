@@ -39,7 +39,7 @@
         <item name="android:layout_weight">1</item>
         <item name="android:textSize">15sp</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:textColor">@color/text</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
     <style name="Category.Chevron">
         <item name="android:layout_width">24dp</item>

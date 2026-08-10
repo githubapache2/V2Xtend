@@ -16,7 +16,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:textSize="14sp"
-        android:textColor="@color/text"/>
+        android:textColor="?attr/colorOnSurface"/>
 
     <TextView
         android:id="@+id/choiceCheck"
