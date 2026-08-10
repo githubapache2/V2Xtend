@@ -60,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var parkingLayer: AutobahnPointLayer
     private lateinit var chargingLayer: AutobahnPointLayer
     private lateinit var dwdWarningsLayer: DwdWarningsLayer
+    private lateinit var osmSignalsLayer: OsmTrafficSignalsLayer
     private lateinit var geiger: GeigerCounter
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -168,6 +169,7 @@ class MainActivity : AppCompatActivity() {
         parkingLayer         = AutobahnPointLayer(binding.map, this, R.drawable.ic_marker_dot,      0xFF43A047.toInt())
         chargingLayer        = AutobahnPointLayer(binding.map, this, R.drawable.ic_marker_dot,      0xFF00ACC1.toInt())
         dwdWarningsLayer = DwdWarningsLayer(binding.map, this)
+        osmSignalsLayer = OsmTrafficSignalsLayer(binding.map, this)
         geiger  = GeigerCounter(this)
         if (Prefs.audioFeedback(this)) geiger.start()
         if (Prefs.roadworksEnabled(this)) refreshRoadworks()
@@ -176,6 +178,7 @@ class MainActivity : AppCompatActivity() {
         if (Prefs.parkingEnabled(this)) refreshParking()
         if (Prefs.chargingEnabled(this)) refreshCharging()
         if (Prefs.dwdWarningsEnabled(this)) refreshDwdWarnings()
+        if (Prefs.osmSignalsEnabled(this)) refreshOsmSignals()
 
         setSupportActionBar(binding.toolbar)
         binding.toolbar.setOnMenuItemClickListener(::onMenuItemClick)
@@ -413,6 +416,14 @@ class MainActivity : AppCompatActivity() {
                 ) { on ->
                     Prefs.setDwdWarningsEnabled(this, on)
                     if (on) refreshDwdWarnings() else dwdWarningsLayer.clear()
+                },
+                LayerPickerSheet.ToggleItem(
+                    key     = "OSM_SIGNALS",
+                    label   = getString(R.string.overlay_osm_signals),
+                    checked = Prefs.osmSignalsEnabled(this),
+                ) { on ->
+                    Prefs.setOsmSignalsEnabled(this, on)
+                    if (on) refreshOsmSignals() else osmSignalsLayer.clear()
                 }
             )
         )
@@ -463,6 +474,34 @@ class MainActivity : AppCompatActivity() {
             val warnings = DwdWarningsApi.fetchWarnings()
             dwdWarningsLayer.show(warnings)
         }
+    }
+
+    /** Fetches the static OSM traffic-signal list (curated bbox, see
+     *  OverpassApi.kt) and immediately computes which ones are currently
+     *  V2X-active against whatever SPATEM RSUs are live right now. Ongoing
+     *  updates as new SPATEM frames arrive / RSUs go stale happen via
+     *  refreshOsmSignalActivity(), not by re-fetching Overpass — the signal
+     *  list itself is static, only which ones are "active" changes. */
+    private fun refreshOsmSignals() {
+        lifecycleScope.launch {
+            osmSignalsLayer.show(OverpassApi.fetchTrafficSignals())
+            refreshOsmSignalActivity()
+        }
+    }
+
+    /** Recomputes OSM-signal active/inactive icons against the current
+     *  spatRsus snapshot. Cheap, called both on every new SPATEM frame
+     *  (handleFrames) and periodically (rateRefresh, 1s tick) so a signal
+     *  reverts to "inactive" within a few seconds of its RSU going stale,
+     *  not just when a new frame happens to arrive. No-op if the overlay
+     *  is off (Prefs check at both call sites, not here, so this can stay
+     *  a plain "do it" method). */
+    private fun refreshOsmSignalActivity() {
+        val now = System.currentTimeMillis()
+        val livePositions = spatRsus.values
+            .filter { now - it.lastSeenMs <= SPAT_RSU_STALE_MS }
+            .map { it.lat to it.lon }
+        osmSignalsLayer.updateActive(livePositions)
     }
 
     private fun tileSourceForKey(key: String): ITileSource = when (key) {
@@ -780,6 +819,7 @@ class MainActivity : AppCompatActivity() {
                 spatRsus[f.stationId ?: 0L] = SpatRsu(lat, lon,
                     f.spatPhase ?: SpatTemParser.Phase.UNKNOWN, System.currentTimeMillis())
                 lastLocation?.let { updateSpatLight(it) }
+                if (Prefs.osmSignalsEnabled(this)) refreshOsmSignalActivity()
             }
         }
     }
@@ -787,7 +827,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateSpatLight(loc: Location) {
         if (!spatLightEnabled) return
         val now = System.currentTimeMillis()
-        spatRsus.entries.removeAll { now - it.value.lastSeenMs > 30_000 }
+        spatRsus.entries.removeAll { now - it.value.lastSeenMs > SPAT_RSU_STALE_MS }
         if (spatRsus.isEmpty()) { binding.spatLight.visibility = View.GONE; return }
 
         val results = FloatArray(2)
@@ -846,6 +886,10 @@ class MainActivity : AppCompatActivity() {
             }
             binding.logStats.text = getString(R.string.log_stats, totalFrames.toInt(), rate) + suffix
             if (::markers.isInitialized) markers.prune()
+            // Re-check staleness even without a fresh SPATEM frame, so a
+            // signal reverts to "inactive" a few seconds after its RSU goes
+            // quiet, not only when the next frame happens to arrive.
+            if (::osmSignalsLayer.isInitialized && Prefs.osmSignalsEnabled(this@MainActivity)) refreshOsmSignalActivity()
             ReceiverForegroundService.instance?.updateStats(totalFrames.toInt(), rate)
             mainHandler.postDelayed(this, 1_000)
         }
@@ -865,5 +909,10 @@ class MainActivity : AppCompatActivity() {
         // table or picking roads from the user's GPS position — deliberately
         // out of scope for this first end-to-end pass.
         private val ROADWORK_ROAD_IDS = listOf("A555", "A59", "A565", "A61", "A560")
+
+        // How long a SPATEM RSU is considered "still broadcasting" without a
+        // fresh frame — shared between the existing 400m SPAT-light indicator
+        // and the OSM-signal V2X-active matching (Redesign Phase 2, Punkt 2).
+        private const val SPAT_RSU_STALE_MS = 30_000L
     }
 }

@@ -31,6 +31,7 @@ object Prefs {
     private const val KEY_TRAFFIC_WARNINGS_ENABLED = "traffic_warnings_enabled"
     private const val KEY_PARKING_ENABLED = "parking_enabled"
     private const val KEY_CHARGING_ENABLED = "charging_enabled"
+    private const val KEY_OSM_SIGNALS_ENABLED = "osm_signals_enabled"
 
     const val DEFAULT_MARKER_TTL_MIN = 60   // 1 hour
     private val OLD_DEFAULTS = setOf(5, 1440) // values that should be migrated to new default
@@ -175,6 +176,12 @@ object Prefs {
 
     fun setChargingEnabled(ctx: Context, on: Boolean) =
         prefs(ctx).edit { putBoolean(KEY_CHARGING_ENABLED, on) }
+
+    fun osmSignalsEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_OSM_SIGNALS_ENABLED, false)
+
+    fun setOsmSignalsEnabled(ctx: Context, on: Boolean) =
+        prefs(ctx).edit { putBoolean(KEY_OSM_SIGNALS_ENABLED, on) }
 
     private fun prefs(ctx: Context) =
         ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

@@ -100,6 +100,9 @@
     <string name="overlay_traffic_warnings">Traffic jams (Autobahn API)</string>
     <string name="overlay_parking_lorry">Lorry parking (Autobahn API)</string>
     <string name="overlay_charging_stations">Charging stations (Autobahn API)</string>
+    <string name="overlay_osm_signals">Traffic signals (OSM)</string>
+    <string name="osm_signal_active">Traffic signal — live V2X (SPATEM) received</string>
+    <string name="osm_signal_plain">Traffic signal (OSM only)</string>
     <string name="map_layer_standard">Standard (OpenStreetMap)</string>
     <string name="map_layer_dark">Dark (CartoDB)</string>
     <string name="map_layer_satellite">Satellite (Esri)</string>

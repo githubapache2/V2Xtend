@@ -106,6 +106,9 @@
     <string name="overlay_traffic_warnings">Staus (Autobahn-API)</string>
     <string name="overlay_parking_lorry">LKW-Parkplätze (Autobahn-API)</string>
     <string name="overlay_charging_stations">Ladestationen (Autobahn-API)</string>
+    <string name="overlay_osm_signals">Ampeln (OSM)</string>
+    <string name="osm_signal_active">Ampel — live V2X-Empfang (SPATEM)</string>
+    <string name="osm_signal_plain">Ampel (nur OSM)</string>
     <string name="map_layer_standard">Standard (OpenStreetMap)</string>
     <string name="map_layer_dark">Dunkel (CartoDB)</string>
     <string name="map_layer_satellite">Satellit (Esri)</string>
