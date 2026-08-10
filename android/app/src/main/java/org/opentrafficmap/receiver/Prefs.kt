@@ -25,6 +25,7 @@ object Prefs {
     private const val KEY_FORCE_DARK      = "force_dark_mode"
     private const val KEY_OWN_TRACK       = "own_track"
     private const val KEY_COMPASS_MODE    = "compass_mode"
+    private const val KEY_ROADWORKS_ENABLED = "roadworks_enabled"
 
     const val DEFAULT_MARKER_TTL_MIN = 60   // 1 hour
     private val OLD_DEFAULTS = setOf(5, 1440) // values that should be migrated to new default
@@ -133,6 +134,12 @@ object Prefs {
 
     fun setCompassMode(ctx: Context, on: Boolean) =
         prefs(ctx).edit { putBoolean(KEY_COMPASS_MODE, on) }
+
+    fun roadworksEnabled(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_ROADWORKS_ENABLED, false)
+
+    fun setRoadworksEnabled(ctx: Context, on: Boolean) =
+        prefs(ctx).edit { putBoolean(KEY_ROADWORKS_ENABLED, on) }
 
     private fun prefs(ctx: Context) =
         ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

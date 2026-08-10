@@ -19,6 +19,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -38,6 +39,7 @@ import org.osmdroid.util.MapTileIndex
 import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
+import kotlinx.coroutines.launch
 import java.util.LinkedList
 
 class MainActivity : AppCompatActivity() {
@@ -52,6 +54,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var locationOverlay: MyLocationNewOverlay
     private lateinit var fused: FusedLocationProviderClient
     private lateinit var markers: MarkerLayer
+    private lateinit var roadworksLayer: RoadworksLayer
     private lateinit var geiger: GeigerCounter
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -154,8 +157,10 @@ class MainActivity : AppCompatActivity() {
         ownTrackEnabled = Prefs.ownTrackEnabled(this)
         compassMode     = Prefs.compassMode(this)
         markers = MarkerLayer(binding.map, this)
+        roadworksLayer = RoadworksLayer(binding.map, this)
         geiger  = GeigerCounter(this)
         if (Prefs.audioFeedback(this)) geiger.start()
+        if (Prefs.roadworksEnabled(this)) refreshRoadworks()
 
         setSupportActionBar(binding.toolbar)
         binding.toolbar.setOnMenuItemClickListener(::onMenuItemClick)
@@ -326,7 +331,7 @@ class MainActivity : AppCompatActivity() {
             LayerPickerSheet.Choice("TRANSPORT",  getString(R.string.map_layer_transport)),
             LayerPickerSheet.Choice("HOT",        getString(R.string.map_layer_humanitarian)),
         )
-        val styleSection = LayerPickerSheet.Section(
+        val styleSection = LayerPickerSheet.ChoiceSection(
             title       = getString(R.string.map_layer_section_style),
             choices     = styleChoices,
             selectedKey = Prefs.mapLayer(this),
@@ -334,9 +339,37 @@ class MainActivity : AppCompatActivity() {
             Prefs.setMapLayer(this, key)
             binding.map.setTileSource(tileSourceForKey(key))
         }
-        // Future overlay layers (DWD weather warnings, Autobahn API roadworks, ...)
-        // become additional Sections here once those data sources exist.
-        LayerPickerSheet.show(this, getString(R.string.map_layer_title), listOf(styleSection))
+
+        // First traffic-data overlay (Redesign Phase 2, Punkt 2). Independent
+        // on/off toggle, not a radio choice — that's why ChoiceSection alone
+        // (the only section kind that existed before this) wasn't enough and
+        // ToggleSection was added, see LayerPickerSheet.kt.
+        val overlaysSection = LayerPickerSheet.ToggleSection(
+            title = getString(R.string.map_layer_section_overlays),
+            items = listOf(
+                LayerPickerSheet.ToggleItem(
+                    key     = "ROADWORKS",
+                    label   = getString(R.string.overlay_roadworks),
+                    checked = Prefs.roadworksEnabled(this),
+                ) { on ->
+                    Prefs.setRoadworksEnabled(this, on)
+                    if (on) refreshRoadworks() else roadworksLayer.clear()
+                }
+            )
+        )
+
+        LayerPickerSheet.show(this, getString(R.string.map_layer_title), listOf(styleSection, overlaysSection))
+    }
+
+    /** Fetches roadworks for the curated regional road list (see
+     *  ROADWORK_ROAD_IDS) and renders them. No viewport/geo query exists on
+     *  the Autobahn API — see AutobahnApi.kt / CLAUDE.md for why this is a
+     *  fixed road list rather than "whatever's on screen" for now. */
+    private fun refreshRoadworks() {
+        lifecycleScope.launch {
+            val roadworks = AutobahnApi.fetchRoadworks(ROADWORK_ROAD_IDS)
+            roadworksLayer.show(roadworks)
+        }
     }
 
     private fun tileSourceForKey(key: String): ITileSource = when (key) {
@@ -730,5 +763,14 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val OWN_TRACK_MAX  = 2000
         private const val LOG_REFRESH_MS = 300L  // log drain interval
+
+        // Curated regional starter set for the roadworks overlay (Redesign
+        // Phase 2, Punkt 2) — Bonn/Cologne area, where field testing has
+        // happened so far (see CLAUDE.md). Not a general solution: the
+        // Autobahn API has no viewport/geo query, so "roadworks near wherever
+        // the map currently shows" would need either a road/region lookup
+        // table or picking roads from the user's GPS position — deliberately
+        // out of scope for this first end-to-end pass.
+        private val ROADWORK_ROAD_IDS = listOf("A555", "A59", "A565", "A61", "A560")
     }
 }
