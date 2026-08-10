@@ -319,25 +319,24 @@ class MainActivity : AppCompatActivity() {
     // ------------------------------------------ Map layers
 
     private fun showLayerPicker() {
-        val keys   = arrayOf("MAPNIK", "DARK", "SATELLITE", "TRANSPORT", "HOT")
-        val labels = arrayOf(
-            getString(R.string.map_layer_standard),
-            getString(R.string.map_layer_dark),
-            getString(R.string.map_layer_satellite),
-            getString(R.string.map_layer_transport),
-            getString(R.string.map_layer_humanitarian)
+        val styleChoices = listOf(
+            LayerPickerSheet.Choice("MAPNIK",     getString(R.string.map_layer_standard)),
+            LayerPickerSheet.Choice("DARK",       getString(R.string.map_layer_dark)),
+            LayerPickerSheet.Choice("SATELLITE",  getString(R.string.map_layer_satellite)),
+            LayerPickerSheet.Choice("TRANSPORT",  getString(R.string.map_layer_transport)),
+            LayerPickerSheet.Choice("HOT",        getString(R.string.map_layer_humanitarian)),
         )
-        val current = keys.indexOf(Prefs.mapLayer(this)).coerceAtLeast(0)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.map_layer_title)
-            .setSingleChoiceItems(labels, current) { dlg, which ->
-                val key = keys[which]
-                Prefs.setMapLayer(this, key)
-                binding.map.setTileSource(tileSourceForKey(key))
-                dlg.dismiss()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        val styleSection = LayerPickerSheet.Section(
+            title       = getString(R.string.map_layer_section_style),
+            choices     = styleChoices,
+            selectedKey = Prefs.mapLayer(this),
+        ) { key ->
+            Prefs.setMapLayer(this, key)
+            binding.map.setTileSource(tileSourceForKey(key))
+        }
+        // Future overlay layers (DWD weather warnings, Autobahn API roadworks, ...)
+        // become additional Sections here once those data sources exist.
+        LayerPickerSheet.show(this, getString(R.string.map_layer_title), listOf(styleSection))
     }
 
     private fun tileSourceForKey(key: String): ITileSource = when (key) {

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/sectionHeaderLabel"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="20dp"
+    android:textAllCaps="true"
+    android:textSize="10sp"
+    android:letterSpacing="0.12"
+    android:textColor="@color/text_dim"
+    android:layout_marginTop="14dp"
+    android:layout_marginBottom="4dp"/>
