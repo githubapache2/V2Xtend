@@ -95,6 +95,7 @@
     <string name="map_layer_section_style">Map style</string>
     <string name="map_layer_section_overlays">Overlays</string>
     <string name="overlay_roadworks">Roadworks (Autobahn API)</string>
+    <string name="overlay_dwd_warnings">Weather warnings (DWD)</string>
     <string name="map_layer_standard">Standard (OpenStreetMap)</string>
     <string name="map_layer_dark">Dark (CartoDB)</string>
     <string name="map_layer_satellite">Satellite (Esri)</string>

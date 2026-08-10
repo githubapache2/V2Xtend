@@ -101,6 +101,7 @@
     <string name="map_layer_section_style">Kartenstil</string>
     <string name="map_layer_section_overlays">Zusatzebenen</string>
     <string name="overlay_roadworks">Baustellen (Autobahn-API)</string>
+    <string name="overlay_dwd_warnings">Wetterwarnungen (DWD)</string>
     <string name="map_layer_standard">Standard (OpenStreetMap)</string>
     <string name="map_layer_dark">Dunkel (CartoDB)</string>
     <string name="map_layer_satellite">Satellit (Esri)</string>

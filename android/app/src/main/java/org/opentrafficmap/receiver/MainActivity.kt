@@ -55,6 +55,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fused: FusedLocationProviderClient
     private lateinit var markers: MarkerLayer
     private lateinit var roadworksLayer: RoadworksLayer
+    private lateinit var dwdWarningsLayer: DwdWarningsLayer
     private lateinit var geiger: GeigerCounter
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -158,9 +159,11 @@ class MainActivity : AppCompatActivity() {
         compassMode     = Prefs.compassMode(this)
         markers = MarkerLayer(binding.map, this)
         roadworksLayer = RoadworksLayer(binding.map, this)
+        dwdWarningsLayer = DwdWarningsLayer(binding.map, this)
         geiger  = GeigerCounter(this)
         if (Prefs.audioFeedback(this)) geiger.start()
         if (Prefs.roadworksEnabled(this)) refreshRoadworks()
+        if (Prefs.dwdWarningsEnabled(this)) refreshDwdWarnings()
 
         setSupportActionBar(binding.toolbar)
         binding.toolbar.setOnMenuItemClickListener(::onMenuItemClick)
@@ -340,10 +343,13 @@ class MainActivity : AppCompatActivity() {
             binding.map.setTileSource(tileSourceForKey(key))
         }
 
-        // First traffic-data overlay (Redesign Phase 2, Punkt 2). Independent
-        // on/off toggle, not a radio choice — that's why ChoiceSection alone
-        // (the only section kind that existed before this) wasn't enough and
-        // ToggleSection was added, see LayerPickerSheet.kt.
+        // Traffic-data overlays (Redesign Phase 2, Punkt 2). Independent
+        // on/off toggles, not a radio choice — that's why ChoiceSection alone
+        // (the only section kind that existed before roadworks) wasn't
+        // enough and ToggleSection was added, see LayerPickerSheet.kt. DWD
+        // warnings (second source) reuse that same ToggleSection/ToggleItem
+        // shape unchanged — just one more item in this list, no further
+        // LayerPickerSheet changes needed this time.
         val overlaysSection = LayerPickerSheet.ToggleSection(
             title = getString(R.string.map_layer_section_overlays),
             items = listOf(
@@ -354,6 +360,14 @@ class MainActivity : AppCompatActivity() {
                 ) { on ->
                     Prefs.setRoadworksEnabled(this, on)
                     if (on) refreshRoadworks() else roadworksLayer.clear()
+                },
+                LayerPickerSheet.ToggleItem(
+                    key     = "DWD_WARNINGS",
+                    label   = getString(R.string.overlay_dwd_warnings),
+                    checked = Prefs.dwdWarningsEnabled(this),
+                ) { on ->
+                    Prefs.setDwdWarningsEnabled(this, on)
+                    if (on) refreshDwdWarnings() else dwdWarningsLayer.clear()
                 }
             )
         )
@@ -369,6 +383,17 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val roadworks = AutobahnApi.fetchRoadworks(ROADWORK_ROAD_IDS)
             roadworksLayer.show(roadworks)
+        }
+    }
+
+    /** Unlike refreshRoadworks(), no curated region list — the DWD endpoint
+     *  returns the full nationwide warning set in one call, so there's
+     *  nothing to curate (see CLAUDE.md for why that's not true of the
+     *  Autobahn API). */
+    private fun refreshDwdWarnings() {
+        lifecycleScope.launch {
+            val warnings = DwdWarningsApi.fetchWarnings()
+            dwdWarningsLayer.show(warnings)
         }
     }
 
