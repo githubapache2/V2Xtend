@@ -18,4 +18,33 @@
         <item name="android:textSize">11sp</item>
         <item name="android:alpha">0.7</item>
     </style>
+
+    <!-- Collapsible top-level settings category (SettingsActivity) — same
+         expand/collapse language as the Frame Log panel on the map screen
+         (chevron rotates 180°, see MainActivity/logCollapseBtn). -->
+    <style name="Category"/>
+    <style name="Category.HeaderRow" parent="Category">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingVertical">14dp</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+    </style>
+    <style name="Category.HeaderLabel">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text</item>
+    </style>
+    <style name="Category.Chevron">
+        <item name="android:layout_width">24dp</item>
+        <item name="android:layout_height">24dp</item>
+        <item name="android:src">@drawable/ic_expand_more</item>
+        <item name="android:contentDescription">@string/toggle_section</item>
+    </style>
 </resources>

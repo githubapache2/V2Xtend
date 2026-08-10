@@ -25,6 +25,14 @@
     <string name="settings_title">Einstellungen</string>
     <string name="about_title">Über V2X2MAP</string>
 
+    <!-- Settings categories -->
+    <string name="toggle_section">Abschnitt ein-/ausblenden</string>
+    <string name="cat_connection">Verbindung</string>
+    <string name="cat_map_display">Karte &amp; Anzeige</string>
+    <string name="cat_audio_haptics">Audio / Haptik</string>
+    <string name="cat_data_mqtt">Daten &amp; MQTT</string>
+    <string name="cat_about">Über</string>
+
     <!-- Recording -->
     <string name="rec_off">Aufnahme</string>
     <string name="rec_on">Aufnahme stoppen</string>

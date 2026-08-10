@@ -28,6 +28,14 @@
     <string name="settings_title">Settings</string>
     <string name="about_title">About V2X2MAP</string>
 
+    <!-- Settings categories -->
+    <string name="toggle_section">Toggle section</string>
+    <string name="cat_connection">Connection</string>
+    <string name="cat_map_display">Map &amp; display</string>
+    <string name="cat_audio_haptics">Audio / haptics</string>
+    <string name="cat_data_mqtt">Data &amp; MQTT</string>
+    <string name="cat_about">About</string>
+
     <!-- Settings -->
     <string name="rec_off">Record</string>
     <string name="rec_on">Stop recording</string>

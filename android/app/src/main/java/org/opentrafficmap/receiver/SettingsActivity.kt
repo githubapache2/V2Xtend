@@ -3,6 +3,8 @@ package org.opentrafficmap.receiver
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -19,6 +21,18 @@ class SettingsActivity : AppCompatActivity() {
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         binding.toolbar.setNavigationOnClickListener { finish() }
+
+        // --- Collapsible categories ------------------------------------------
+        // All collapsed by default — this screen used to be one long flat list
+        // of ~10 section headers, grouping them behind a handful of tappable
+        // categories is the whole point (Redesign Phase 2, step 2, see
+        // CLAUDE.md). Same expand/collapse language (chevron rotates 180°) as
+        // the Frame Log panel on the map screen.
+        bindCategory(binding.catConnectionHeader, binding.catConnectionChevron, binding.catConnectionContent)
+        bindCategory(binding.catMapHeader,        binding.catMapChevron,        binding.catMapContent)
+        bindCategory(binding.catAudioHeader,      binding.catAudioChevron,      binding.catAudioContent)
+        bindCategory(binding.catDataHeader,       binding.catDataChevron,       binding.catDataContent)
+        bindCategory(binding.catAboutHeader,      binding.catAboutChevron,      binding.catAboutContent)
 
         // --- Keep screen on -------------------------------------------------
         binding.swKeepScreenOn.isChecked = Prefs.keepScreenOn(this)
@@ -185,6 +199,16 @@ class SettingsActivity : AppCompatActivity() {
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    // ── Collapsible categories ──────────────────────────────────────────────
+
+    private fun bindCategory(header: View, chevron: ImageView, content: View) {
+        header.setOnClickListener {
+            val expand = content.visibility != View.VISIBLE
+            content.visibility = if (expand) View.VISIBLE else View.GONE
+            chevron.rotation = if (expand) 180f else 0f
+        }
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
