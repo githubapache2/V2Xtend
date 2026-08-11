@@ -106,6 +106,7 @@
         android:layout_marginBottom="@dimen/space_4"
         android:contentDescription="@string/compass_north_up"
         app:srcCompat="@drawable/ic_compass"
+        app:shapeAppearance="@style/ShapeAppearance.V2X.Full"
         app:fabSize="mini"
         app:layout_constraintEnd_toEndOf="@id/map"
         app:layout_constraintBottom_toTopOf="@id/fabLayers"/>
@@ -119,6 +120,7 @@
         android:layout_marginBottom="@dimen/space_4"
         android:contentDescription="@string/map_layer_title"
         app:srcCompat="@drawable/ic_layers"
+        app:shapeAppearance="@style/ShapeAppearance.V2X.Full"
         app:fabSize="mini"
         app:layout_constraintEnd_toEndOf="@id/map"
         app:layout_constraintBottom_toTopOf="@id/fabLocate"/>
@@ -131,6 +133,7 @@
         android:layout_margin="14dp"
         android:contentDescription="@string/locate"
         app:srcCompat="@drawable/ic_my_location"
+        app:shapeAppearance="@style/ShapeAppearance.V2X.Full"
         app:layout_constraintEnd_toEndOf="@id/map"
         app:layout_constraintBottom_toBottomOf="@id/map"/>
 

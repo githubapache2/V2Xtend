@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Schriftfamilien in res/font/ ablegen: outfit.xml, dm_sans.xml, jetbrains_mono.xml -->
+    <style name="TextAppearance.V2X.Display" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="fontFamily">@font/outfit</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+    <style name="TextAppearance.V2X.Title" parent="TextAppearance.Material3.TitleLarge">
+        <item name="fontFamily">@font/outfit</item>
+        <item name="android:textSize">20sp</item>
+    </style>
+    <style name="TextAppearance.V2X.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="fontFamily">@font/dm_sans</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+    <style name="TextAppearance.V2X.Label" parent="TextAppearance.Material3.LabelSmall">
+        <item name="fontFamily">@font/dm_sans</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+    <style name="TextAppearance.V2X.Mono" parent="TextAppearance.Material3.BodySmall">
+        <item name="fontFamily">@font/jetbrains_mono</item>
+        <item name="android:textSize">11sp</item>
+    </style>
+    <style name="TextAppearance.V2X.MonoLarge" parent="TextAppearance.V2X.Mono">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextAppearance.V2X.Code" parent="TextAppearance.V2X.Mono">
+        <item name="android:textSize">10sp</item>
+        <item name="android:lineSpacingMultiplier">1.3</item>
+    </style>
+</resources>
