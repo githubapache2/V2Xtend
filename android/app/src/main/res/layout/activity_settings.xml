@@ -25,8 +25,8 @@
             android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="4dp">
+            android:paddingHorizontal="@dimen/space_16"
+            android:paddingVertical="@dimen/space_4">
 
             <!-- ══════════════ Verbindung ══════════════ -->
             <LinearLayout
@@ -125,7 +125,7 @@
                     style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="4dp"
+                    android:layout_marginBottom="@dimen/space_4"
                     android:hint="@string/marker_ttl_label">
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/edMarkerTtl"
@@ -240,7 +240,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="@dimen/space_8"
                     android:layout_marginBottom="2dp"
                     android:text="@string/mqtt_broker_label"
                     android:textSize="12sp"
@@ -265,7 +265,7 @@
                     style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="@dimen/space_8"
                     android:hint="@string/mqtt_node_label">
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/edNodeId"
@@ -279,7 +279,7 @@
                     style="@style/Widget.Material3.Button.TonalButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="@dimen/space_8"
                     android:text="@string/mqtt_filter_btn"/>
 
                 <TextView
@@ -294,7 +294,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
-                android:layout_marginBottom="4dp"
+                android:layout_marginBottom="@dimen/space_4"
                 android:text="@string/reset"/>
 
             <!-- ══════════════ Über ══════════════ -->

@@ -3,10 +3,10 @@
     android:id="@+id/sectionHeaderLabel"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingHorizontal="20dp"
+    android:paddingHorizontal="@dimen/space_20"
     android:textAllCaps="true"
     android:textSize="10sp"
     android:letterSpacing="0.12"
     android:textColor="?attr/colorOnSurfaceVariant"
     android:layout_marginTop="14dp"
-    android:layout_marginBottom="4dp"/>
+    android:layout_marginBottom="@dimen/space_4"/>

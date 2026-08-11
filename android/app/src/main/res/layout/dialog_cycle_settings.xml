@@ -3,7 +3,7 @@
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="16dp">
+    android:padding="@dimen/space_16">
 
     <TextView
         android:layout_width="match_parent"
@@ -18,14 +18,14 @@
         android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="@dimen/space_12">
 
         <Button
             android:id="@+id/presetWardriving"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginEnd="4dp"
+            android:layout_marginEnd="@dimen/space_4"
             android:textSize="11sp"
             android:text="@string/preset_wardriving"/>
 
@@ -34,7 +34,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginHorizontal="4dp"
+            android:layout_marginHorizontal="@dimen/space_4"
             android:textSize="11sp"
             android:text="@string/preset_stationary"/>
 
@@ -43,7 +43,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="4dp"
+            android:layout_marginStart="@dimen/space_4"
             android:textSize="11sp"
             android:text="@string/preset_pairing"/>
     </LinearLayout>
@@ -67,7 +67,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginEnd="4dp"
+            android:layout_marginEnd="@dimen/space_4"
             android:hint="@string/sniff_ms_hint"
             android:inputType="number"/>
 
@@ -76,7 +76,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="4dp"
+            android:layout_marginStart="@dimen/space_4"
             android:hint="@string/ble_ms_hint"
             android:inputType="number"/>
     </LinearLayout>
@@ -88,7 +88,7 @@
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="11sp"
         android:textAllCaps="true"
-        android:layout_marginTop="12dp"/>
+        android:layout_marginTop="@dimen/space_12"/>
 
     <LinearLayout
         android:orientation="horizontal"
@@ -100,7 +100,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginEnd="4dp"
+            android:layout_marginEnd="@dimen/space_4"
             android:hint="@string/sniff_ms_hint"
             android:inputType="number"/>
 
@@ -109,7 +109,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="4dp"
+            android:layout_marginStart="@dimen/space_4"
             android:hint="@string/ble_ms_hint"
             android:inputType="number"/>
     </LinearLayout>

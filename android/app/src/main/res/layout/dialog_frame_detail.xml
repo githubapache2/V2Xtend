@@ -3,7 +3,7 @@
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingBottom="32dp">
+    android:paddingBottom="@dimen/space_32">
 
     <!-- Drag handle -->
     <View
@@ -19,7 +19,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
+        android:paddingHorizontal="@dimen/space_16"
         android:gravity="center_vertical"
         android:paddingBottom="10dp">
 
@@ -63,7 +63,7 @@
             android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="16dp">
+            android:padding="@dimen/space_16">
 
             <!-- Metadata rows (monospace two-column text) -->
             <TextView
@@ -84,14 +84,14 @@
                 android:textSize="10sp"
                 android:letterSpacing="0.12"
                 android:textColor="?attr/colorOnSurfaceVariant"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="@dimen/space_16"
                 android:layout_marginBottom="6dp"/>
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="?attr/colorOutline"
-                android:layout_marginBottom="8dp"/>
+                android:layout_marginBottom="@dimen/space_8"/>
 
             <TextView
                 android:id="@+id/detailHex"

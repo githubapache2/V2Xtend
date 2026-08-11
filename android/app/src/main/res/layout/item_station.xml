@@ -6,8 +6,8 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:paddingStart="8dp"
-    android:paddingEnd="4dp"
+    android:paddingStart="@dimen/space_8"
+    android:paddingEnd="@dimen/space_4"
     android:paddingTop="6dp"
     android:paddingBottom="6dp"
     android:gravity="center_vertical"
@@ -65,7 +65,7 @@
         android:id="@+id/stationDist"
         android:layout_width="40dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
+        android:layout_marginStart="@dimen/space_4"
         android:textSize="10sp"
         android:gravity="end"
         android:alpha="0.75"/>
@@ -75,7 +75,7 @@
         android:id="@+id/stationLock"
         android:layout_width="16dp"
         android:layout_height="16dp"
-        android:layout_marginStart="4dp"
+        android:layout_marginStart="@dimen/space_4"
         android:contentDescription="secured"/>
 
     <!-- Expand / collapse chevron -->

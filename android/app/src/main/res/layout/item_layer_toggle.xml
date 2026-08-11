@@ -4,8 +4,8 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingHorizontal="20dp"
-    android:paddingVertical="8dp"
+    android:paddingHorizontal="@dimen/space_20"
+    android:paddingVertical="@dimen/space_8"
     android:clickable="true"
     android:focusable="true"
     android:background="?attr/selectableItemBackground">

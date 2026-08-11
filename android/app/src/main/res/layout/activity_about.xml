@@ -25,7 +25,7 @@
             android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="20dp">
+            android:padding="@dimen/space_20">
 
             <!-- App info -->
             <TextView
@@ -39,7 +39,7 @@
                 android:id="@+id/version"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="@dimen/space_4"
                 android:textSize="13sp"
                 android:alpha="0.7"/>
 
@@ -53,7 +53,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="@dimen/space_20"
                 android:text="@string/about_credits"
                 android:textSize="12sp"
                 android:alpha="0.85"/>
@@ -69,7 +69,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/hw_intro"
                 android:textSize="13sp"
-                android:layout_marginBottom="12dp"/>
+                android:layout_marginBottom="@dimen/space_12"/>
 
             <TextView
                 android:layout_width="match_parent"
@@ -121,7 +121,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/hw_reset_body"
                 android:textSize="12sp"
-                android:layout_marginBottom="4dp"/>
+                android:layout_marginBottom="@dimen/space_4"/>
 
             <!-- ── Licenses ─────────────────────────────────────────────── -->
 
@@ -150,7 +150,7 @@
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="@dimen/space_20"
                 android:text="@string/github_link"/>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
