@@ -35,4 +35,20 @@
     <color name="cits_spatem">#FF00D4AA</color>
     <color name="cits_mapem">#FF58A6FF</color>
     <color name="cits_ivim">#FFDA3633</color>
+
+    <!-- Overlay-Marker-Töne (Autobahn-API/DWD, siehe MainActivity/DwdWarningsLayer).
+         Konsistenzcheck vor dem Handoff-Umbau (CLAUDE.md): zwei der ursprünglich
+         gewählten Töne kollidierten mit den neuen cits_*-Farben oben — Baustellen
+         (Diamant, Bernstein) und Sperrungen (Diamant, Rot) bleiben unverändert
+         gegenüber vorher, decken sich farblich zwar mit cits_denm/cits_ivim, aber
+         das war schon vor dem Handoff so (beides "Warnung/gesperrt"-Rot bzw.
+         "Bauarbeiten"-Orange, unterschiedliche Icon-Form) und ist kein neuer Bruch.
+         Staus und Ladestationen wurden dagegen bewusst verschoben, da sie sonst
+         nahezu identisch mit cits_cam (Lila) bzw. cits_spatem (Türkis) gewesen
+         wären, obwohl inhaltlich unabhängige Kategorien. -->
+    <color name="overlay_roadworks">#FFE8A33D</color>
+    <color name="overlay_closures">#FFD32F2F</color>
+    <color name="overlay_traffic_jam">#FFF9A825</color>   <!-- vorher #FF9C27B0 (Lila) — kollidierte mit cits_cam -->
+    <color name="overlay_parking">#FF43A047</color>
+    <color name="overlay_charging">#FF3949AB</color>      <!-- vorher #FF00ACC1 (Türkis) — kollidierte mit cits_spatem -->
 </resources>
