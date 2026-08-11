@@ -17,10 +17,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
+import androidx.core.view.children
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.R as MaterialR
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -70,7 +72,11 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var lastSpeedMps: Float = 0f
     @Volatile private var followEnabled: Boolean = false
     @Volatile private var spatLightEnabled: Boolean = true
-    private var logExpanded = true
+    private lateinit var sheetBehavior: BottomSheetBehavior<android.widget.LinearLayout>
+    private var lastUsbState: UsbSerialController.State = UsbSerialController.State.IDLE
+    private var lastUsbInfo: String? = null
+    private var lastBtState: BluetoothController.State = BluetoothController.State.IDLE
+    private var lastBtInfo: String? = null
 
     // Button default tints (restored on IDLE)
     private var defaultBtnTintUsb: ColorStateList? = null
@@ -180,9 +186,6 @@ class MainActivity : AppCompatActivity() {
         if (Prefs.dwdWarningsEnabled(this)) refreshDwdWarnings()
         if (Prefs.osmSignalsEnabled(this)) refreshOsmSignals()
 
-        setSupportActionBar(binding.toolbar)
-        binding.toolbar.setOnMenuItemClickListener(::onMenuItemClick)
-
         binding.map.setTileSource(tileSourceForKey(Prefs.mapLayer(this)))
         binding.map.setMultiTouchControls(true)
         binding.map.controller.setZoom(6.0)
@@ -203,7 +206,10 @@ class MainActivity : AppCompatActivity() {
         binding.fabLocate.setOnClickListener { onLocateClick() }
         binding.fabLayers.setOnClickListener { showLayerPicker() }
         binding.fabCompass.setOnClickListener { toggleCompassMode() }
-        binding.logCollapseBtn.setOnClickListener { toggleLogPanel() }
+        binding.fabSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
+
+        setupBottomSheet()
+        updateConnStatus()
 
         // Reflect saved compass mode on FAB immediately
         applyCompassFabTint()
@@ -214,16 +220,6 @@ class MainActivity : AppCompatActivity() {
         if (followEnabled || ownTrackEnabled || compassMode) ensureLocation()
         mainHandler.post(rateRefresh)
         mainHandler.post(logRefresh)
-    }
-
-    override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
-        menuInflater.inflate(R.menu.menu_main, menu)
-        return true
-    }
-
-    private fun onMenuItemClick(item: android.view.MenuItem): Boolean = when (item.itemId) {
-        R.id.action_settings -> { startActivity(Intent(this, SettingsActivity::class.java)); true }
-        else -> false
     }
 
     override fun onResume() {
@@ -319,24 +315,51 @@ class MainActivity : AppCompatActivity() {
         ownTrackPoints.clear()
         ownTrackLine?.let { binding.map.overlays.remove(it) }
         ownTrackLine = null
-        binding.logStats.text    = getString(R.string.log_stats, 0, 0)
+        binding.logStats.text       = getString(R.string.log_stats, 0, 0)
+        binding.peekFrameStats.text = getString(R.string.log_stats, 0, 0)
         binding.emptyLog.visibility  = View.VISIBLE
         binding.spatLight.visibility = View.GONE
         binding.map.invalidate()
     }
 
-    // ------------------------------------------ Log panel collapse
+    // ------------------------------------------ Bottom sheet (handoff redesign, step 5)
 
-    private fun toggleLogPanel() {
-        logExpanded = !logExpanded
-        val cs = ConstraintSet()
-        cs.clone(binding.root)
-        cs.setGuidelinePercent(R.id.logSplit, if (logExpanded) 0.70f else 0.96f)
-        cs.applyTo(binding.root)
-        binding.log.visibility = if (logExpanded) View.VISIBLE else View.GONE
-        if (!logExpanded) binding.emptyLog.visibility = View.GONE
-        else if (adapter.itemCount == 0) binding.emptyLog.visibility = View.VISIBLE
-        binding.logCollapseBtn.rotation = if (logExpanded) 0f else 180f
+    /** Three snap points per the handoff spec: COLLAPSED shows only the peek
+     *  strip, HALF_EXPANDED reaches ~52% of the screen, EXPANDED reaches
+     *  [R.dimen.sheet_expanded_offset] from the top. The FAB column is
+     *  anchored to this sheet in the layout (app:layout_anchor="@id/sheet")
+     *  and hidden here at STATE_EXPANDED so it doesn't end up trapped behind
+     *  the fully-drawn sheet. */
+    private fun setupBottomSheet() {
+        sheetBehavior = BottomSheetBehavior.from(binding.sheet).apply {
+            isFitToContents = false
+            peekHeight = resources.getDimensionPixelSize(R.dimen.sheet_peek)
+            halfExpandedRatio = 0.52f
+            expandedOffset = resources.getDimensionPixelSize(R.dimen.sheet_expanded_offset)
+            state = BottomSheetBehavior.STATE_COLLAPSED
+        }
+        binding.sheet.post { trackFabColumnToSheet() }
+        sheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
+            override fun onStateChanged(sheet: View, newState: Int) {
+                val expanded = newState == BottomSheetBehavior.STATE_EXPANDED
+                binding.fabColumn.animate().alpha(if (expanded) 0f else 1f).setDuration(150).start()
+                binding.fabColumn.isClickable = !expanded
+                binding.fabColumn.children.forEach { it.isClickable = !expanded }
+            }
+            override fun onSlide(sheet: View, slideOffset: Float) = trackFabColumnToSheet()
+        })
+    }
+
+    /** Keeps fabColumn's bottom edge pinned to the sheet's current (live)
+     *  top edge, riding up/down as the sheet is dragged through its three
+     *  snap points. Driven manually via translationY rather than
+     *  app:layout_anchor — on-device testing found the anchor mechanism
+     *  doesn't track a match_parent-height BottomSheetBehavior sheet's
+     *  peek-adjusted top correctly (it resolved to the screen bottom
+     *  instead), so the FABs ended up sinking behind the sheet. See
+     *  CLAUDE.md for the measured before/after. */
+    private fun trackFabColumnToSheet() {
+        binding.fabColumn.translationY = (binding.sheet.top - binding.root.height).toFloat()
     }
 
     // ------------------------------------------ Map layers
@@ -633,6 +656,8 @@ class MainActivity : AppCompatActivity() {
             UsbSerialController.State.CONNECTED  -> ColorStateList.valueOf(0xFF4CAF50.toInt())
             UsbSerialController.State.ERROR      -> ColorStateList.valueOf(0xFFF44336.toInt())
         }
+        lastUsbState = state; lastUsbInfo = info
+        updateConnStatus()
     }
 
     // --------------------------------------------------------------- BT
@@ -676,6 +701,61 @@ class MainActivity : AppCompatActivity() {
             BluetoothController.State.CONNECTED  -> ColorStateList.valueOf(0xFF4CAF50.toInt())
             BluetoothController.State.ERROR      -> ColorStateList.valueOf(0xFFF44336.toInt())
         }
+        lastBtState = state; lastBtInfo = info
+        updateConnStatus()
+    }
+
+    /** Combines the USB and BT controller states into the single compact
+     *  readout shown in the peek strip's SOURCE cell (always visible) and
+     *  the source row's larger status line (expanded only) — see handoff
+     *  README "Verbindungsstatus". Priority: an actual CONNECTED transport
+     *  wins over one that's merely reconnecting/scanning, which in turn
+     *  wins over IDLE, so the most actionable state is always what's shown
+     *  even though the app tracks two independent transports. */
+    private fun updateConnStatus() {
+        if (!::binding.isInitialized) return
+        data class Status(val text: String, val colorAttr: Int)
+        // Some controller info strings already self-identify (e.g.
+        // R.string.bt_searching = "BT: searching for %s…"), others don't
+        // (R.string.bt_reconnect = "Reconnect #%d (%ds)…") — prefixing
+        // unconditionally would double up on the former, so only add the
+        // transport tag when it isn't already there.
+        fun tag(prefix: String, info: String) =
+            if (info.startsWith(prefix, ignoreCase = true)) info else "$prefix $info"
+        fun usbText() = when (lastUsbState) {
+            UsbSerialController.State.CONNECTED  -> tag("USB", "CONNECTED ${lastUsbInfo ?: ""}".trim())
+            UsbSerialController.State.REQUESTING -> tag("USB", lastUsbInfo ?: getString(R.string.usb_connecting))
+            UsbSerialController.State.ERROR      -> tag("USB", "ERROR ${lastUsbInfo ?: ""}".trim())
+            UsbSerialController.State.IDLE       -> null
+        }
+        fun btText() = when (lastBtState) {
+            BluetoothController.State.CONNECTED  -> tag("BT", "CONNECTED ${lastBtInfo ?: ""}".trim())
+            BluetoothController.State.SCANNING,
+            BluetoothController.State.CONNECTING -> tag("BT", lastBtInfo ?: getString(R.string.bt_connecting_label))
+            BluetoothController.State.ERROR      -> tag("BT", "ERROR ${lastBtInfo ?: ""}".trim())
+            BluetoothController.State.IDLE       -> null
+        }
+        val connected = listOfNotNull(
+            if (lastUsbState == UsbSerialController.State.CONNECTED) usbText() else null,
+            if (lastBtState  == BluetoothController.State.CONNECTED)  btText()  else null,
+        ).firstOrNull()
+        val busy = listOfNotNull(usbText(), btText()).firstOrNull()
+        val status = when {
+            connected != null -> Status(connected, MaterialR.attr.colorTertiary)
+            busy != null       -> Status(busy, 0)   // v2x_warn — no theme attr, resolved below
+            else               -> Status(getString(R.string.status_offline), MaterialR.attr.colorOnSurfaceVariant)
+        }
+        val color = if (status.colorAttr == 0) {
+            ContextCompat.getColor(this, R.color.v2x_warn)
+        } else {
+            val tv = android.util.TypedValue()
+            theme.resolveAttribute(status.colorAttr, tv, true)
+            tv.data
+        }
+        binding.peekConnStatus.text = status.text
+        binding.peekConnStatus.setTextColor(color)
+        binding.sourceStatusText.text = status.text
+        binding.sourceStatusText.setTextColor(color)
     }
 
     // ---------------------------------------------------------- Location
@@ -867,7 +947,7 @@ class MainActivity : AppCompatActivity() {
                 val batch = pendingLogFrames.toList()
                 pendingLogFrames.clear()
                 adapter.addFrames(batch)
-                if (logExpanded && binding.emptyLog.visibility != View.GONE)
+                if (binding.emptyLog.visibility != View.GONE)
                     binding.emptyLog.visibility = View.GONE
             }
             mainHandler.postDelayed(this, LOG_REFRESH_MS)
@@ -884,7 +964,9 @@ class MainActivity : AppCompatActivity() {
                 rate > 60  -> ""
                 else       -> ""
             }
-            binding.logStats.text = getString(R.string.log_stats, totalFrames.toInt(), rate) + suffix
+            val statsText = getString(R.string.log_stats, totalFrames.toInt(), rate) + suffix
+            binding.logStats.text = statsText
+            binding.peekFrameStats.text = statsText
             if (::markers.isInitialized) markers.prune()
             // Re-check staleness even without a fresh SPATEM frame, so a
             // signal reverts to "inactive" a few seconds after its RSU goes

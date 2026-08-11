@@ -20,6 +20,13 @@
     <string name="frames_log_header">Frame log</string>
     <string name="empty_log">no frames received yet…</string>
 
+    <!-- Sheet: peek strip + source row (handoff redesign, step 5) -->
+    <string name="source_label">SOURCE</string>
+    <string name="status_offline">OFFLINE</string>
+    <string name="peek_phase_none">—</string>
+    <string name="ampel_no_reception">no signal</string>
+    <string name="ampel_section_label">PHASE</string>
+
     <!-- Top-level actions -->
     <string name="locate">Locate</string>
     <string name="follow_on">Follow ●</string>
