@@ -26,7 +26,7 @@
         android:text="✓"
         android:textSize="16sp"
         android:textStyle="bold"
-        android:textColor="@color/accent"
+        android:textColor="?attr/colorPrimary"
         android:visibility="invisible"/>
 
 </LinearLayout>

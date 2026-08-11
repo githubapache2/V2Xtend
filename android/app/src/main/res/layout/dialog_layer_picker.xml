@@ -15,7 +15,7 @@
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="10dp"
         android:layout_marginBottom="14dp"
-        android:background="@color/border"/>
+        android:background="?attr/colorOutline"/>
 
     <TextView
         android:id="@+id/layerSheetTitle"

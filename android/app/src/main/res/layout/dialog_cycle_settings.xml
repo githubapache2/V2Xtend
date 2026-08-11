@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/cycle_presets_label"
-        android:textColor="@color/text_dim"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="11sp"
         android:textAllCaps="true"
         android:layout_marginBottom="6dp"/>
@@ -52,7 +52,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/cycle_disc_label"
-        android:textColor="@color/text_dim"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="11sp"
         android:textAllCaps="true"
         android:layout_marginTop="6dp"/>
@@ -85,7 +85,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/cycle_conn_label"
-        android:textColor="@color/text_dim"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="11sp"
         android:textAllCaps="true"
         android:layout_marginTop="12dp"/>
@@ -118,7 +118,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/cycle_hint"
-        android:textColor="@color/text_dim"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="10sp"
         android:layout_marginTop="10dp"/>
 </LinearLayout>

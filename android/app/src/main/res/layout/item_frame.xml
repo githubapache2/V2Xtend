@@ -13,7 +13,7 @@
         android:id="@+id/fTime"
         android:layout_width="60dp"
         android:layout_height="wrap_content"
-        android:textColor="@color/text_dim"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="10sp"
         android:fontFamily="monospace"/>
 
@@ -21,7 +21,7 @@
         android:id="@+id/fEt"
         android:layout_width="60dp"
         android:layout_height="wrap_content"
-        android:textColor="@color/text"
+        android:textColor="?attr/colorOnSurface"
         android:textSize="10sp"
         android:fontFamily="monospace"/>
 
@@ -29,7 +29,7 @@
         android:id="@+id/fLen"
         android:layout_width="40dp"
         android:layout_height="wrap_content"
-        android:textColor="@color/text_dim"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="10sp"
         android:fontFamily="monospace"/>
 
@@ -38,7 +38,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:textColor="@color/accent"
+        android:textColor="?attr/colorPrimary"
         android:textSize="10sp"
         android:fontFamily="monospace"
         android:singleLine="true"
