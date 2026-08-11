@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark (Standard) -->
+    <color name="v2x_bg_dark">#FF0A0A0F</color>
+    <color name="v2x_surface_dark">#FF13131C</color>
+    <color name="v2x_surface_raised_dark">#FF1E1E2C</color>
+    <color name="v2x_on_surface_dark">#FFF0F0F8</color>
+    <color name="v2x_on_surface_var_dark">#FF888899</color>
+    <color name="v2x_muted_dark">#FF44445A</color>
+    <color name="v2x_outline_dark">#1AFFFFFF</color>
+    <color name="v2x_accent_dark">#FF7C6FF7</color>
+    <color name="v2x_accent_container_dark">#FF241F4D</color>
+    <color name="v2x_live_dark">#FF00D4AA</color>
+    <color name="v2x_error_dark">#FFFF5A57</color>
+
+    <!-- Light (Sonnenlicht: höhere Kontraste, keine Transparenzflächen) -->
+    <color name="v2x_bg_light">#FFF7F7FB</color>
+    <color name="v2x_surface_light">#FFFFFFFF</color>
+    <color name="v2x_surface_raised_light">#FFEFEFF4</color>
+    <color name="v2x_on_surface_light">#FF14141C</color>
+    <color name="v2x_on_surface_var_light">#FF5B5B6B</color>
+    <color name="v2x_muted_light">#FFB4B4C2</color>
+    <color name="v2x_outline_light">#24000000</color>
+    <color name="v2x_accent_light">#FF5B4FD6</color>
+    <color name="v2x_accent_container_light">#FFEFECFF</color>
+    <color name="v2x_live_light">#FF00674F</color>
+    <color name="v2x_error_light">#FFB3261E</color>
+
+    <!-- Warnung / Reconnect (in beiden Themes belegt, siehe values-night) -->
+    <color name="v2x_warn">#FFC46410</color>
+
+    <!-- C-ITS-Typfarben: identisch in dark und light, damit Kanäle wiedererkennbar bleiben -->
+    <color name="cits_cam">#FF7C6FF7</color>
+    <color name="cits_denm">#FFF0883E</color>
+    <color name="cits_spatem">#FF00D4AA</color>
+    <color name="cits_mapem">#FF58A6FF</color>
+    <color name="cits_ivim">#FFDA3633</color>
+</resources>

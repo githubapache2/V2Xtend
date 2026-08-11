@@ -1,11 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Handoff-Umbau (docs/handoff/README.md), Schritt 1: nur Farbrollen.
-         shapeAppearanceCorner*/textAppearance* Zeilen kommen in Schritt 4
-         zurück, sobald shapes_v2x.xml/type_v2x.xml existieren — das
-         Handoff-themes.xml referenziert sie bereits vorab, das hätte den
-         Schritt-1-Build sofort gebrochen (Widerspruch zur "jeder Schritt
-         muss bauen"-Vorgabe). Siehe CLAUDE.md für die Begründung. -->
     <style name="Theme.V2Xtend" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/v2x_accent_light</item>
         <item name="colorOnPrimary">@color/v2x_surface_light</item>
@@ -25,6 +19,14 @@
         <item name="colorOnSurfaceVariant">@color/v2x_on_surface_var_light</item>
         <item name="colorOutline">@color/v2x_outline_light</item>
 
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.V2X.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.V2X.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.V2X.Large</item>
+
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.V2X.Title</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.V2X.Body</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.V2X.Label</item>
+
         <item name="bottomSheetDialogTheme">@style/Theme.V2Xtend.BottomSheet</item>
     </style>
 
@@ -33,6 +35,7 @@
     </style>
 
     <style name="Widget.V2X.BottomSheet" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="shapeAppearance">@style/ShapeAppearance.V2X.Large</item>
         <item name="backgroundTint">?attr/colorSurface</item>
     </style>
 </resources>

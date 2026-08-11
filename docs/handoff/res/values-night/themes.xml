@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.V2Xtend" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/v2x_accent_dark</item>
+        <item name="colorOnPrimary">@color/v2x_bg_dark</item>
+        <item name="colorPrimaryContainer">@color/v2x_accent_container_dark</item>
+        <item name="colorOnPrimaryContainer">@color/v2x_on_surface_dark</item>
+
+        <item name="colorTertiary">@color/v2x_live_dark</item>
+        <item name="colorOnTertiary">@color/v2x_bg_dark</item>
+
+        <item name="colorError">@color/v2x_error_dark</item>
+        <item name="colorOnError">@color/v2x_bg_dark</item>
+
+        <item name="android:colorBackground">@color/v2x_bg_dark</item>
+        <item name="colorSurface">@color/v2x_surface_dark</item>
+        <item name="colorSurfaceVariant">@color/v2x_surface_raised_dark</item>
+        <item name="colorOnSurface">@color/v2x_on_surface_dark</item>
+        <item name="colorOnSurfaceVariant">@color/v2x_on_surface_var_dark</item>
+        <item name="colorOutline">@color/v2x_outline_dark</item>
+
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.V2X.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.V2X.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.V2X.Large</item>
+
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.V2X.Title</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.V2X.Body</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.V2X.Label</item>
+
+        <item name="bottomSheetDialogTheme">@style/Theme.V2Xtend.BottomSheet</item>
+    </style>
+</resources>

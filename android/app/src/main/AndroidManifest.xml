@@ -38,7 +38,7 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:usesCleartextTraffic="false"
-        android:theme="@style/Theme.V2X2MAP"
+        android:theme="@style/Theme.V2Xtend"
         tools:targetApi="34">
 
         <activity
