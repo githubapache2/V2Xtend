@@ -144,6 +144,8 @@
                 android:textSize="12sp" android:text="@string/about_license_flexbox"/>
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:textSize="12sp" android:text="@string/about_license_kotlin"/>
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="12sp" android:text="@string/about_license_fonts"/>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnGithub"

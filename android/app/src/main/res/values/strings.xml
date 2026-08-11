@@ -242,5 +242,6 @@
     <string name="about_license_material">Android Material Components — Apache 2.0</string>
     <string name="about_license_flexbox">FlexboxLayout — Apache 2.0</string>
     <string name="about_license_kotlin">Kotlin Standard Library &amp; Coroutines — Apache 2.0</string>
+    <string name="about_license_fonts">Outfit, DM Sans, JetBrains Mono — SIL Open Font License 1.1</string>
     <string name="about_credits">Based on the firmware from opentrafficmap/its-g5-receiver-firmware (forked for ESP32-C5 + BLE streaming).</string>
 </resources>
