@@ -64,6 +64,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var dwdWarningsLayer: DwdWarningsLayer
     private lateinit var osmSignalsLayer: OsmTrafficSignalsLayer
     private lateinit var geiger: GeigerCounter
+    private lateinit var citsAlertBar: CitsAlertBar
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val rateWindow = LinkedList<Long>()
@@ -197,6 +198,15 @@ class MainActivity : AppCompatActivity() {
         binding.log.layoutManager = LinearLayoutManager(this)
         binding.log.adapter = adapter
 
+        citsAlertBar = CitsAlertBar(
+            context = this,
+            barContainer = binding.alertBarContainer,
+            chipContainer = binding.alertBar,
+            emptyText = binding.alertBarEmptyText,
+            chevron = binding.alertBarChevron,
+            detailsContainer = binding.alertDetails,
+        )
+
         // Cache default button tints before any programmatic change
         defaultBtnTintUsb = binding.btnConnect.backgroundTintList
         defaultBtnTintBt  = binding.btnConnectBt.backgroundTintList
@@ -319,6 +329,7 @@ class MainActivity : AppCompatActivity() {
         binding.peekFrameStats.text = getString(R.string.log_stats, 0, 0)
         binding.emptyLog.visibility  = View.VISIBLE
         binding.spatLight.visibility = View.GONE
+        binding.ampelCell.setState(AmpelCellView.State.NoReception)
         binding.map.invalidate()
     }
 
@@ -326,9 +337,9 @@ class MainActivity : AppCompatActivity() {
 
     /** Three snap points per the handoff spec: COLLAPSED shows only the peek
      *  strip, HALF_EXPANDED reaches ~52% of the screen, EXPANDED reaches
-     *  [R.dimen.sheet_expanded_offset] from the top. The FAB column is
-     *  anchored to this sheet in the layout (app:layout_anchor="@id/sheet")
-     *  and hidden here at STATE_EXPANDED so it doesn't end up trapped behind
+     *  [R.dimen.sheet_expanded_offset] from the top. The FAB column tracks
+     *  this sheet's live top via translationY (trackFabColumnToSheet()) and
+     *  is hidden here at STATE_EXPANDED so it doesn't end up trapped behind
      *  the fully-drawn sheet. */
     private fun setupBottomSheet() {
         sheetBehavior = BottomSheetBehavior.from(binding.sheet).apply {
@@ -338,7 +349,15 @@ class MainActivity : AppCompatActivity() {
             expandedOffset = resources.getDimensionPixelSize(R.dimen.sheet_expanded_offset)
             state = BottomSheetBehavior.STATE_COLLAPSED
         }
-        binding.sheet.post { trackFabColumnToSheet() }
+        // A single post{} here raced BottomSheetBehavior's own initial
+        // peek-offset layout pass on a cold start: it could fire before the
+        // behavior finished positioning the sheet, leaving fabColumn synced
+        // to the sheet's pre-offset (0) top until the user's first drag
+        // (which re-syncs via onSlide) — found via a real cold-start check,
+        // not just the repeated warm drag-testing that had been masking it.
+        // A persistent GlobalLayoutListener re-syncs on every layout pass
+        // instead of trusting a single well-timed callback.
+        binding.sheet.viewTreeObserver.addOnGlobalLayoutListener { trackFabColumnToSheet() }
         sheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(sheet: View, newState: Int) {
                 val expanded = newState == BottomSheetBehavior.STATE_EXPANDED
@@ -893,6 +912,7 @@ class MainActivity : AppCompatActivity() {
             if (f.msgType.name in mqttFilter) mqttBridges.forEach { it.publish(f.payload) }
             if (recorder.isRecording) recorder.append(f)
             rateWindow.add(System.currentTimeMillis())
+            citsAlertBar.onMessage(f.msgType, describeFrame(f))
 
             if (f.msgType == ItsG5Decoder.MsgType.SPATEM && f.latLon != null) {
                 val (lat, lon) = f.latLon
@@ -904,11 +924,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Short, single-line summary for a CitsAlertBar detail row — station
+     *  id (the closest thing to a stable per-sender identifier we have) plus
+     *  a DENM cause if this frame carried one. */
+    private fun describeFrame(f: Frame): String {
+        val station = f.stationId?.let { "%08x".format(it) } ?: "—"
+        val cause = f.denmCause?.let { " · $it" } ?: ""
+        return "$station$cause"
+    }
+
     private fun updateSpatLight(loc: Location) {
-        if (!spatLightEnabled) return
         val now = System.currentTimeMillis()
         spatRsus.entries.removeAll { now - it.value.lastSeenMs > SPAT_RSU_STALE_MS }
-        if (spatRsus.isEmpty()) { binding.spatLight.visibility = View.GONE; return }
+        if (spatRsus.isEmpty()) {
+            if (spatLightEnabled) binding.spatLight.visibility = View.GONE
+            binding.ampelCell.setState(AmpelCellView.State.NoReception)
+            return
+        }
 
         val results = FloatArray(2)
         val nearest = spatRsus.values.filter { rsu ->
@@ -924,9 +956,20 @@ class MainActivity : AppCompatActivity() {
             results[0]
         }
 
-        if (nearest == null) { binding.spatLight.visibility = View.GONE; return }
-        binding.spatLight.visibility = View.VISIBLE
-        applyPhaseColors(nearest.phase)
+        if (nearest == null) {
+            if (spatLightEnabled) binding.spatLight.visibility = View.GONE
+            binding.ampelCell.setState(AmpelCellView.State.NoReception)
+            return
+        }
+        // SpatTemParser doesn't extract a countdown/minEndTime field today,
+        // so the peek cell can only ever reach PhaseOnly from real data —
+        // PhaseCountdown exists in AmpelCellView for spec-completeness and
+        // was verified manually on-device, see CLAUDE.md.
+        binding.ampelCell.setState(AmpelCellView.State.PhaseOnly(nearest.phase))
+        if (spatLightEnabled) {
+            binding.spatLight.visibility = View.VISIBLE
+            applyPhaseColors(nearest.phase)
+        }
     }
 
     private fun applyPhaseColors(phase: SpatTemParser.Phase) {
@@ -967,6 +1010,7 @@ class MainActivity : AppCompatActivity() {
             val statsText = getString(R.string.log_stats, totalFrames.toInt(), rate) + suffix
             binding.logStats.text = statsText
             binding.peekFrameStats.text = statsText
+            if (::citsAlertBar.isInitialized) citsAlertBar.tick()
             if (::markers.isInitialized) markers.prune()
             // Re-check staleness even without a fresh SPATEM frame, so a
             // signal reverts to "inactive" a few seconds after its RSU goes

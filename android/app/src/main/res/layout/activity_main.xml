@@ -48,33 +48,78 @@
         android:elevation="6dp"
         android:visibility="gone"/>
 
-    <!-- C-ITS alert bar — placeholder shell for step 6 (Meldungsleiste).
-         Kept top|start per the handoff diagram; chip population and the
-         CitsAlert TTL/count model land in step 6, not here. -->
-    <HorizontalScrollView
-        android:id="@+id/alertBarScroll"
+    <!-- C-ITS alert bar (Meldungsleiste) — one chip per active message
+         type, count + 30s TTL per type (see MainActivity.CitsAlertBar).
+         translationZ above the sheet so alertDetails stays legible over
+         it at every snap point, per the handoff README. -->
+    <LinearLayout
+        android:id="@+id/alertBarRoot"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:layout_gravity="top|start"
         android:layout_margin="@dimen/space_8"
         android:fitsSystemWindows="true"
-        android:scrollbars="none"
         android:elevation="6dp"
-        android:visibility="gone"
-        tools:visibility="visible">
+        android:translationZ="6dp">
 
         <LinearLayout
-            android:id="@+id/alertBar"
+            android:id="@+id/alertBarContainer"
             android:layout_width="wrap_content"
             android:layout_height="@dimen/alert_bar_height"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:background="@drawable/bg_alert_bar"
-            android:paddingHorizontal="@dimen/space_12"
+            android:paddingStart="@dimen/space_12"
+            android:paddingEnd="@dimen/space_8"
             android:clickable="true"
-            android:focusable="true"/>
+            android:focusable="true">
 
-    </HorizontalScrollView>
+            <HorizontalScrollView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/alertBar"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"/>
+
+            </HorizontalScrollView>
+
+            <TextView
+                android:id="@+id/alertBarEmptyText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/cits_no_events"
+                android:textSize="12sp"
+                android:textColor="?attr/colorOnSurfaceVariant"/>
+
+            <ImageView
+                android:id="@+id/alertBarChevron"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="@dimen/space_4"
+                android:visibility="gone"
+                android:contentDescription="@string/toggle_section"
+                app:srcCompat="@drawable/ic_expand_more"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/alertDetails"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_4"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card"
+            android:padding="@dimen/space_12"
+            android:elevation="6dp"
+            android:visibility="gone"/>
+
+    </LinearLayout>
 
     <!-- FAB column — positioned bottom|end of the screen, then pushed up via
          translationY (set in MainActivity, tracking the sheet's live top) so
@@ -202,21 +247,10 @@
                     android:text="@string/ampel_section_label"
                     style="@style/Section.PeekLabel"/>
 
-                <!-- Placeholder cell for step 5. Replaced by the dedicated
-                     Ampelzelle custom view (3 explicit states, 220ms color
-                     transition) in step 6 — see CLAUDE.md. -->
-                <TextView
-                    android:id="@+id/peekPhaseCell"
+                <org.opentrafficmap.receiver.AmpelCellView
+                    android:id="@+id/ampelCell"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="13sp"
-                    android:fontFamily="monospace"
-                    android:textStyle="bold"
-                    android:gravity="center_horizontal"
-                    android:singleLine="true"
-                    android:ellipsize="end"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:text="@string/peek_phase_none"/>
+                    android:layout_height="wrap_content"/>
             </LinearLayout>
 
             <LinearLayout
