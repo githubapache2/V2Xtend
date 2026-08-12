@@ -363,86 +363,132 @@
                 android:orientation="vertical"
                 android:paddingBottom="@dimen/space_16">
 
-                <!-- Source row — full USB/BT toggle + status text, only
-                     reachable once the sheet is dragged past peek height. -->
+                <!-- Source row — USB/BT toggle + status text. Takes the
+                     slot right after the counters row (where the frame-log
+                     header used to sit) — both this and the header below
+                     are visible only at STATE_EXPANDED (see
+                     MainActivity.setupBottomSheet's onStateChanged), so the
+                     collapsed peek shows nothing past the counters row. -->
                 <LinearLayout
+                    android:id="@+id/sourceRow"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:paddingHorizontal="@dimen/space_16"
-                    android:paddingTop="@dimen/space_12">
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginStart="@dimen/space_16"
+                    android:layout_marginEnd="@dimen/space_16"
+                    android:layout_marginBottom="@dimen/space_12"
+                    android:paddingStart="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingEnd="4dp"
+                    android:paddingBottom="4dp"
+                    android:background="@drawable/bg_source_row"
+                    android:visibility="gone">
 
                     <TextView
                         android:text="@string/source_label"
-                        style="@style/Section.PeekLabel"/>
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/dm_sans"
+                        android:textSize="11sp"
+                        android:textColor="?attr/colorOnSurfaceVariant"/>
 
                     <TextView
                         android:id="@+id/sourceStatusText"
-                        android:layout_width="match_parent"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="@dimen/space_8"
+                        android:gravity="end"
+                        android:fontFamily="@font/jetbrains_mono"
                         android:textSize="10sp"
-                        android:fontFamily="monospace"
-                        android:maxLines="2"
-                        android:layout_marginBottom="@dimen/space_8"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         tools:text="CONNECTED ttyACM0@115200"/>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnConnect"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:minWidth="@dimen/touch_min"
+                        android:minHeight="@dimen/touch_min"
+                        android:layout_marginStart="@dimen/space_8"
+                        android:text="@string/connect"
+                        android:fontFamily="@font/dm_sans"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        app:cornerRadius="9dp"/>
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnConnect"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:minHeight="@dimen/touch_min"
-                            android:layout_weight="1"
-                            android:layout_marginEnd="6dp"
-                            android:text="@string/connect"
-                            android:textSize="12sp"
-                            android:maxLines="1"
-                            android:ellipsize="end"/>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnConnectBt"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="@dimen/touch_min"
+                        android:minHeight="@dimen/touch_min"
+                        android:layout_marginStart="@dimen/space_4"
+                        android:text="@string/connect_bt"
+                        android:fontFamily="@font/dm_sans"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        app:cornerRadius="9dp"/>
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnConnectBt"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:minHeight="@dimen/touch_min"
-                            android:layout_weight="1"
-                            android:text="@string/connect_bt"
-                            android:textSize="12sp"
-                            android:maxLines="1"
-                            android:ellipsize="end"/>
+                </LinearLayout>
 
-                    </LinearLayout>
+                <!-- Frame-log header — title + running total + settings
+                     gear, directly above the packet list. Same
+                     STATE_EXPANDED-only visibility as sourceRow above. -->
+                <LinearLayout
+                    android:id="@+id/logHeaderRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="@dimen/space_16"
+                    android:paddingEnd="@dimen/space_16"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="10dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/frames_log_header"
+                        android:fontFamily="@font/outfit"
+                        android:textStyle="bold"
+                        android:textSize="17sp"
+                        android:textColor="?attr/colorOnSurface"/>
+
+                    <TextView
+                        android:id="@+id/logStats"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="@dimen/space_12"
+                        android:fontFamily="@font/jetbrains_mono"
+                        android:textSize="11sp"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        tools:text="128 total"/>
+
+                    <ImageView
+                        android:id="@+id/logSettingsGear"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:contentDescription="@string/settings"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        app:tint="?attr/colorOnSurfaceVariant"
+                        app:srcCompat="@drawable/ic_settings"/>
+
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:layout_marginTop="@dimen/space_12"
                     android:background="?attr/colorOutline"/>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:paddingHorizontal="@dimen/space_16"
-                    android:paddingTop="@dimen/space_8"
-                    android:text="@string/frames_log_header"
-                    style="@style/Section.PeekLabel"/>
-
-                <TextView
-                    android:id="@+id/logStats"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:paddingHorizontal="@dimen/space_16"
-                    android:textSize="10sp"
-                    android:fontFamily="monospace"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    tools:text="0 pkts · 0/min"/>
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/log"

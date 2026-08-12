@@ -215,6 +215,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnConnect.setOnClickListener { toggleUsb() }
         binding.btnConnectBt.setOnClickListener { toggleBt() }
+        binding.logSettingsGear.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
         binding.fabLocate.setOnClickListener { onLocateClick() }
         binding.fabLayers.setOnClickListener { showLayerPicker() }
         binding.fabCompass.setOnClickListener { toggleCompassMode() }
@@ -327,7 +328,7 @@ class MainActivity : AppCompatActivity() {
         ownTrackPoints.clear()
         ownTrackLine?.let { binding.map.overlays.remove(it) }
         ownTrackLine = null
-        binding.logStats.text   = getString(R.string.log_stats, 0, 0)
+        binding.logStats.text   = getString(R.string.stat_total, 0)
         binding.peekRateText.text = getString(R.string.rate_per_min, 0)
         binding.emptyLog.visibility  = View.VISIBLE
         binding.spatLight.visibility = View.GONE
@@ -367,6 +368,13 @@ class MainActivity : AppCompatActivity() {
                 binding.fabColumn.animate().alpha(if (expanded) 0f else 1f).setDuration(150).start()
                 binding.fabColumn.isClickable = !expanded
                 binding.fabColumn.children.forEach { it.isClickable = !expanded }
+                // Source row + frame-log header should already look like the
+                // full sheet once HALF_EXPANDED is reached — only COLLAPSED
+                // (peek strip + counters only) hides them.
+                val detailVisibility =
+                    if (newState == BottomSheetBehavior.STATE_COLLAPSED) View.GONE else View.VISIBLE
+                binding.sourceRow.visibility = detailVisibility
+                binding.logHeaderRow.visibility = detailVisibility
             }
             override fun onSlide(sheet: View, slideOffset: Float) = trackFabColumnToSheet()
         })
@@ -685,19 +693,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Button text is static — the live connection message (info) only ever
+    // shows in sourceStatusText to the left, never inside the pill itself.
     private fun onUsbState(state: UsbSerialController.State, info: String?) = runOnUiThread {
-        binding.btnConnect.text = when (state) {
-            UsbSerialController.State.IDLE       -> getString(R.string.connect)
-            UsbSerialController.State.REQUESTING -> info ?: getString(R.string.usb_connecting)
-            UsbSerialController.State.CONNECTED  -> "${getString(R.string.disconnect)} ${info ?: ""}"
-            UsbSerialController.State.ERROR      -> "${getString(R.string.usb_error_btn)}  ${info?.take(22) ?: ""}"
-        }
+        binding.btnConnect.text = getString(R.string.connect)
         binding.btnConnect.backgroundTintList = when (state) {
-            UsbSerialController.State.IDLE       -> defaultBtnTintUsb
+            UsbSerialController.State.IDLE       -> ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
             UsbSerialController.State.REQUESTING -> ColorStateList.valueOf(0xFFFF9800.toInt())
-            UsbSerialController.State.CONNECTED  -> ColorStateList.valueOf(0xFF4CAF50.toInt())
+            UsbSerialController.State.CONNECTED  -> ColorStateList.valueOf(sourcePillActiveColor())
             UsbSerialController.State.ERROR      -> ColorStateList.valueOf(0xFFF44336.toInt())
         }
+        binding.btnConnect.setTextColor(sourcePillTextColor(state == UsbSerialController.State.IDLE))
         lastUsbState = state; lastUsbInfo = info
         updateConnStatus()
     }
@@ -729,20 +735,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onBtState(state: BluetoothController.State, info: String?) = runOnUiThread {
-        binding.btnConnectBt.text = when (state) {
-            BluetoothController.State.IDLE       -> getString(R.string.connect_bt)
-            BluetoothController.State.SCANNING   -> info ?: getString(R.string.bt_scanning_label)
-            BluetoothController.State.CONNECTING -> info ?: getString(R.string.bt_connecting_label)
-            BluetoothController.State.CONNECTED  -> "${getString(R.string.disconnect_bt)} ${info ?: ""}"
-            BluetoothController.State.ERROR      -> "${getString(R.string.bt_error_btn)}  ${info?.take(22) ?: ""}"
-        }
+        binding.btnConnectBt.text = getString(R.string.connect_bt)
         binding.btnConnectBt.backgroundTintList = when (state) {
-            BluetoothController.State.IDLE       -> defaultBtnTintBt
+            BluetoothController.State.IDLE       -> ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
             BluetoothController.State.SCANNING,
             BluetoothController.State.CONNECTING -> ColorStateList.valueOf(0xFFFF9800.toInt())
-            BluetoothController.State.CONNECTED  -> ColorStateList.valueOf(0xFF4CAF50.toInt())
+            BluetoothController.State.CONNECTED  -> ColorStateList.valueOf(sourcePillActiveColor())
             BluetoothController.State.ERROR      -> ColorStateList.valueOf(0xFFF44336.toInt())
         }
+        binding.btnConnectBt.setTextColor(sourcePillTextColor(state == BluetoothController.State.IDLE))
         lastBtState = state; lastBtInfo = info
         updateConnStatus()
     }
@@ -810,6 +811,25 @@ class MainActivity : AppCompatActivity() {
             if (connectedTag != null) ContextCompat.getColor(this, R.color.ampel_green_active)
             else ContextCompat.getColor(this, R.color.v2x_muted_dark)
         )
+    }
+
+    /** USB/BT source-row pill "active" fill — ?attr/colorPrimary, which in
+     *  the (so far dark-only precision-passed) night theme resolves to
+     *  exactly the design file's #7C6FF7. */
+    private fun sourcePillActiveColor(): Int {
+        val tv = android.util.TypedValue()
+        theme.resolveAttribute(MaterialR.attr.colorPrimary, tv, true)
+        return tv.data
+    }
+
+    /** USB/BT source-row pill text color: muted while idle/inactive
+     *  (?attr/colorOnSurfaceVariant), contrast color otherwise
+     *  (?attr/colorOnPrimary — legible over colorPrimary/amber/red fills). */
+    private fun sourcePillTextColor(idle: Boolean): Int {
+        val attr = if (idle) MaterialR.attr.colorOnSurfaceVariant else MaterialR.attr.colorOnPrimary
+        val tv = android.util.TypedValue()
+        theme.resolveAttribute(attr, tv, true)
+        return tv.data
     }
 
     // ---------------------------------------------------------- Location
@@ -1038,13 +1058,7 @@ class MainActivity : AppCompatActivity() {
             val cutoff = System.currentTimeMillis() - 60_000
             while (rateWindow.isNotEmpty() && rateWindow.first() < cutoff) rateWindow.removeFirst()
             val rate = rateWindow.size
-            val suffix = when {
-                rate > 300 -> " ⚡"
-                rate > 60  -> ""
-                else       -> ""
-            }
-            val statsText = getString(R.string.log_stats, totalFrames.toInt(), rate) + suffix
-            binding.logStats.text = statsText
+            binding.logStats.text = getString(R.string.stat_total, totalFrames.toInt())
             binding.peekRateText.text = getString(R.string.rate_per_min, rate)
             if (::citsAlertBar.isInitialized) citsAlertBar.tick()
             if (::markers.isInitialized) markers.prune()
