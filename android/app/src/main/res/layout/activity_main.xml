@@ -200,11 +200,14 @@
             android:layout_marginBottom="@dimen/space_8"
             android:background="?attr/colorOutline"/>
 
-        <!-- Peek strip — always visible at every snap point. Three cells,
-             fixed weights (0.44/0.30/0.26) so nothing reflows on state
-             change; each value TextView is single-line + ellipsized so a
-             long connection status (e.g. "Reconnect #11 (30s)…") truncates
-             instead of wrapping and changing the row's height. -->
+        <!-- Peek strip — always visible at every snap point, fix 80dp height.
+             Three columns, fixed weights (0.44/0.30/0.26) so nothing
+             reflows on state change: Col 1 Ampelzelle, Col 2 own
+             speed/heading, Col 3 source status dot + reception rate.
+             Precision pass 2026-08-12 against the design file — see
+             CLAUDE.md for what this replaced (a verbose connection-status
+             string used to live in Col 1; that detail now lives only in
+             the expanded "Source" row below, this strip stays compact). -->
         <LinearLayout
             android:id="@+id/peekStrip"
             android:layout_width="match_parent"
@@ -213,45 +216,67 @@
             android:paddingHorizontal="@dimen/space_16"
             android:gravity="center_vertical">
 
-            <LinearLayout
+            <org.opentrafficmap.receiver.AmpelCellView
+                android:id="@+id/ampelCell"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="0.44"
-                android:orientation="vertical">
+                android:layout_weight="0.44"/>
 
-                <TextView
-                    android:text="@string/source_label"
-                    style="@style/Section.PeekLabel"/>
-
-                <TextView
-                    android:id="@+id/peekConnStatus"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="13sp"
-                    android:fontFamily="monospace"
-                    android:textStyle="bold"
-                    android:singleLine="true"
-                    android:ellipsize="end"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    tools:text="OFFLINE"/>
-            </LinearLayout>
+            <View
+                android:layout_width="1dp"
+                android:layout_height="32dp"
+                android:layout_marginHorizontal="@dimen/space_8"
+                android:background="#12FFFFFF"/>
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="0.30"
-                android:orientation="vertical"
-                android:gravity="center_horizontal">
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="bottom">
+
+                    <TextView
+                        android:id="@+id/peekSpeedValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="20sp"
+                        android:fontFamily="monospace"
+                        android:textStyle="bold"
+                        android:textColor="#FFF0F0F8"
+                        tools:text="72"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginBottom="2dp"
+                        android:text="@string/kmh_suffix"
+                        android:textSize="10sp"
+                        android:textColor="?attr/colorOnSurfaceVariant"/>
+                </LinearLayout>
 
                 <TextView
-                    android:text="@string/ampel_section_label"
-                    style="@style/Section.PeekLabel"/>
-
-                <org.opentrafficmap.receiver.AmpelCellView
-                    android:id="@+id/ampelCell"
+                    android:id="@+id/peekHeadingText"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"/>
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:fontFamily="monospace"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    tools:text="NNO 28°"/>
             </LinearLayout>
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="32dp"
+                android:layout_marginHorizontal="@dimen/space_8"
+                android:background="#12FFFFFF"/>
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -260,25 +285,66 @@
                 android:orientation="vertical"
                 android:gravity="end">
 
-                <TextView
-                    android:text="@string/frames_log_header"
-                    android:textAllCaps="true"
-                    style="@style/Section.PeekLabel"/>
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <View
+                        android:id="@+id/peekSourceDotGlow"
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:background="@drawable/ic_status_dot"/>
+
+                    <TextView
+                        android:id="@+id/peekSourceLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:fontFamily="sans-serif-medium"
+                        android:textSize="12sp"
+                        android:textColor="#FFF0F0F8"
+                        tools:text="USB"/>
+                </LinearLayout>
 
                 <TextView
-                    android:id="@+id/peekFrameStats"
+                    android:id="@+id/peekRateText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
                     android:fontFamily="monospace"
                     android:gravity="end"
                     android:singleLine="true"
                     android:ellipsize="end"
                     android:textColor="?attr/colorOnSurfaceVariant"
-                    tools:text="0 pkts · 0/min"/>
+                    tools:text="42/min"/>
             </LinearLayout>
 
         </LinearLayout>
+
+        <!-- Session-total counters — running totals since app start / last
+             "Reset map & log", NOT the 30s-TTL floating alertBar above the
+             map. Four fixed chips (CAM/DENM/SPATEM/MAPEM), dim-background +
+             colored-text look (cits_*_dim/_text), deliberately different
+             from the floating bar's solid-color chips. Populated in
+             MainActivity.SessionCounters. -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/sessionCountersRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingTop="12dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="10dp"/>
+
+        </HorizontalScrollView>
 
         <View
             android:layout_width="match_parent"

@@ -36,6 +36,35 @@
     <color name="cits_mapem">#FF58A6FF</color>
     <color name="cits_ivim">#FFDA3633</color>
 
+    <!-- C-ITS-Typfarben, gedeckte Variante (dim-Fläche + Text) für die
+         Session-Zähler-Zeile (zweite Zeile im permanenten Sheet, unter dem
+         80px-Peek-Streifen) — bewusst anderer Look als die gesättigten
+         Vollfarben-Chips der oberen 30s-TTL-Meldungsleiste, siehe CLAUDE.md.
+         Nur aus einer Dark-Theme-Design-Datei übernommen (kein Light-
+         Äquivalent vorgegeben, siehe "Light-Theme"-Abschnitt in CLAUDE.md —
+         bis zur Klärung nur in values/ (Dark-Referenz), noch nicht in
+         values-night gespiegelt). -->
+    <color name="cits_cam_dim">#247C6FF7</color>
+    <color name="cits_cam_text">#FFB7AFFF</color>
+    <color name="cits_denm_dim">#24F0883E</color>
+    <color name="cits_denm_text">#FFF0A868</color>
+    <color name="cits_spatem_dim">#2400D4AA</color>
+    <color name="cits_spatem_text">#FF4FE0C4</color>
+    <color name="cits_mapem_dim">#2458A6FF</color>
+    <color name="cits_mapem_text">#FF7FBBFF</color>
+    <color name="cits_ivim_dim">#2EDA3633</color>
+    <color name="cits_ivim_text">#FFFF7B78</color>
+
+    <!-- Ampelzelle: drei Lampen-Punkte (Peek-Zeile, Spalte 1). Nur aus der
+         Dark-Design-Datei — siehe cits_*_dim/_text-Kommentar oben, gleiche
+         "erst Dark, Light-Frage separat klären"-Einschränkung. -->
+    <color name="ampel_red_active">#FFFF5A57</color>
+    <color name="ampel_red_off">#FF2A1518</color>
+    <color name="ampel_yellow_active">#FFF0C93E</color>
+    <color name="ampel_yellow_off">#FF2A2415</color>
+    <color name="ampel_green_active">#FF00D4AA</color>
+    <color name="ampel_green_off">#FF0F2A25</color>
+
     <!-- Overlay-Marker-Töne (Autobahn-API/DWD, siehe MainActivity/DwdWarningsLayer).
          Konsistenzcheck vor dem Handoff-Umbau (CLAUDE.md): zwei der ursprünglich
          gewählten Töne kollidierten mit den neuen cits_*-Farben oben — Baustellen

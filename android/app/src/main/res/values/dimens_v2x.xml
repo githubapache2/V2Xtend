@@ -15,7 +15,13 @@
     <dimen name="fab_primary">56dp</dimen>
 
     <!-- Bottom Sheet -->
-    <dimen name="sheet_peek">112dp</dimen>
+    <!-- sheet_peek war ursprünglich 112dp (nur Griff + 80dp-Peek-Zeile) —
+         auf 172dp erhöht (Präzisierungs-Durchgang 2026-08-12), damit die
+         neue Session-Zähler-Zeile unter der Peek-Zeile auch im
+         COLLAPSED-Zustand sichtbar bleibt statt abgeschnitten zu werden
+         (Design-Vorgabe: "noch innerhalb des permanenten Sheets", nicht
+         erst nach Aufziehen sichtbar). Siehe CLAUDE.md. -->
+    <dimen name="sheet_peek">172dp</dimen>
     <dimen name="sheet_expanded_offset">92dp</dimen>
     <dimen name="sheet_peek_strip">80dp</dimen>
     <dimen name="row_height">56dp</dimen>

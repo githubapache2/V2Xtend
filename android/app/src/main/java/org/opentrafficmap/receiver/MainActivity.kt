@@ -65,6 +65,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var osmSignalsLayer: OsmTrafficSignalsLayer
     private lateinit var geiger: GeigerCounter
     private lateinit var citsAlertBar: CitsAlertBar
+    private lateinit var sessionCounters: SessionCounterRow
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val rateWindow = LinkedList<Long>()
@@ -206,6 +207,7 @@ class MainActivity : AppCompatActivity() {
             chevron = binding.alertBarChevron,
             detailsContainer = binding.alertDetails,
         )
+        sessionCounters = SessionCounterRow(this, binding.sessionCountersRow)
 
         // Cache default button tints before any programmatic change
         defaultBtnTintUsb = binding.btnConnect.backgroundTintList
@@ -325,11 +327,12 @@ class MainActivity : AppCompatActivity() {
         ownTrackPoints.clear()
         ownTrackLine?.let { binding.map.overlays.remove(it) }
         ownTrackLine = null
-        binding.logStats.text       = getString(R.string.log_stats, 0, 0)
-        binding.peekFrameStats.text = getString(R.string.log_stats, 0, 0)
+        binding.logStats.text   = getString(R.string.log_stats, 0, 0)
+        binding.peekRateText.text = getString(R.string.rate_per_min, 0)
         binding.emptyLog.visibility  = View.VISIBLE
         binding.spatLight.visibility = View.GONE
         binding.ampelCell.setState(AmpelCellView.State.NoReception)
+        sessionCounters.reset()
         binding.map.invalidate()
     }
 
@@ -607,12 +610,32 @@ class MainActivity : AppCompatActivity() {
         val bearingText = if (loc.hasBearing()) formatBearing(loc.bearing) else "—°"
         binding.speedOverlay.text = "$bearingText  ${"%3.0f km/h".format(speedKph)}"
         binding.speedOverlay.visibility = View.VISIBLE
+
+        // Peek strip Col 2 (design-file precision pass, 2026-08-12) — same
+        // speed/bearing data as the floating map overlay above, just a
+        // second, always-visible compact readout. Deliberately its own
+        // German 16-point compass formatter (design example: "NNO 28°"),
+        // not a reuse of formatBearing()'s English 8-point one — that one
+        // stays as-is since it's the existing, unrelated overlay's format.
+        binding.peekSpeedValue.text = "%.0f".format(speedKph)
+        binding.peekHeadingText.text = if (loc.hasBearing())
+            "${formatBearingDe16(loc.bearing)} %.0f°".format(loc.bearing)
+        else "—"
     }
 
     private fun formatBearing(deg: Float): String {
         val card = arrayOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
         val idx = ((deg / 45f + 0.5f).toInt() % 8).coerceIn(0, 7)
         return "%03.0f° %s".format(deg, card[idx])
+    }
+
+    private fun formatBearingDe16(deg: Float): String {
+        val card = arrayOf(
+            "N", "NNO", "NO", "ONO", "O", "OSO", "SO", "SSO",
+            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
+        )
+        val idx = ((deg / 22.5f + 0.5f).toInt() % 16).coerceIn(0, 15)
+        return card[idx]
     }
 
     // ------------------------------------------ Own track
@@ -771,10 +794,22 @@ class MainActivity : AppCompatActivity() {
             theme.resolveAttribute(status.colorAttr, tv, true)
             tv.data
         }
-        binding.peekConnStatus.text = status.text
-        binding.peekConnStatus.setTextColor(color)
         binding.sourceStatusText.text = status.text
         binding.sourceStatusText.setTextColor(color)
+
+        // Peek strip's compact Col 3 dot+label — design-file precision pass
+        // (2026-08-12): just which transport is live, not the full status
+        // string (that detail lives only in the expanded Source row above).
+        val connectedTag = when {
+            lastUsbState == UsbSerialController.State.CONNECTED -> "USB"
+            lastBtState  == BluetoothController.State.CONNECTED -> "BT"
+            else -> null
+        }
+        binding.peekSourceLabel.text = connectedTag ?: getString(R.string.peek_source_none)
+        binding.peekSourceDotGlow.backgroundTintList = ColorStateList.valueOf(
+            if (connectedTag != null) ContextCompat.getColor(this, R.color.ampel_green_active)
+            else ContextCompat.getColor(this, R.color.v2x_muted_dark)
+        )
     }
 
     // ---------------------------------------------------------- Location
@@ -913,6 +948,7 @@ class MainActivity : AppCompatActivity() {
             if (recorder.isRecording) recorder.append(f)
             rateWindow.add(System.currentTimeMillis())
             citsAlertBar.onMessage(f.msgType, describeFrame(f))
+            sessionCounters.increment(f.msgType)
 
             if (f.msgType == ItsG5Decoder.MsgType.SPATEM && f.latLon != null) {
                 val (lat, lon) = f.latLon
@@ -1009,7 +1045,7 @@ class MainActivity : AppCompatActivity() {
             }
             val statsText = getString(R.string.log_stats, totalFrames.toInt(), rate) + suffix
             binding.logStats.text = statsText
-            binding.peekFrameStats.text = statsText
+            binding.peekRateText.text = getString(R.string.rate_per_min, rate)
             if (::citsAlertBar.isInitialized) citsAlertBar.tick()
             if (::markers.isInitialized) markers.prune()
             // Re-check staleness even without a fresh SPATEM frame, so a
