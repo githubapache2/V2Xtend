@@ -24,8 +24,8 @@ android {
         applicationId = "org.opentrafficmap.receiver"
         minSdk = 24
         targetSdk = 34
-        versionCode = 10
-        versionName = "0.4.0"
+        versionCode = 11
+        versionName = "0.4.1"
     }
 
     signingConfigs {
