@@ -23,7 +23,12 @@ bridge/dist/
 bridge/*.egg-info/
 bridge/config/
 
-# Android / Gradle
+# Android / Gradle (root is repo root since KMP M1)
+.gradle/
+build/
+local.properties
+shared/build/
+shared/.gradle/
 android/.gradle/
 android/build/
 android/app/build/
@@ -32,6 +37,7 @@ android/.idea/
 android/captures/
 android/.kotlin/
 *.iml
+.idea/
 
 # OS / IDE
 .DS_Store

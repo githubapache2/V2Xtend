@@ -14,9 +14,21 @@ Wire protocol as in `bridge/its_g5_bridge.py`:
 
 ## Open in Android Studio
 
-1. **File → Open** → `D:\KI\its-g5-receiver\androidapp`
+1. **File → Open** → the **repo root** (`V2Xtend/`), not this `android/` folder.
+   Gradle root lives at the repo root (KMP modules `:shared` + `:androidApp`).
 2. On the first sync, Gradle pulls the wrapper JAR and all dependencies (USB-Serial, OSMDroid, Paho).
 3. Min SDK is 24 (Android 7), target/compile 34 (Android 14), Kotlin 1.9, AGP 8.2.
+
+Build from CLI:
+
+```bash
+cd ..   # repo root
+./gradlew :androidApp:assembleDebug
+# or from this directory via the shim:
+./gradlew assembleDebug
+```
+
+See also `BUILD.md` in this folder.
 
 ## Install on the device
 

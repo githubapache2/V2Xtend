@@ -155,12 +155,15 @@ idf.py -p COMx -b 921600 flash
 <summary>Android app</summary>
 
 ```powershell
-cd V2Xtend\android
-.\gradlew.bat assembleDebug
-adb install -r app\build\outputs\apk\debug\app-debug.apk
+cd V2Xtend
+.\gradlew.bat :androidApp:assembleDebug
+adb install -r android\app\build\outputs\apk\debug\app-debug.apk
 ```
 
-Or open `V2Xtend/android/` in Android Studio. Min SDK 24 (Android 7.0).
+Or open `V2Xtend/` (repo root — not `android/`) in Android Studio. Min SDK 24 (Android 7.0).
+
+The Gradle root lives at the repo root since the KMP/`shared` module was introduced.
+`android/gradlew` remains as a compatibility shim that forwards to the root wrapper.
 
 </details>
 

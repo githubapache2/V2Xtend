@@ -9,8 +9,10 @@ plugins {
 // Release signing — keystore + passwords live outside the repo.
 // Path is configured in gradle.properties (V2X2MAP_KEYSTORE_PROPERTIES)
 // or falls back to ../../.deploy-keys/v2x2map-keystore.properties.
+// Gradle root is the repo root (M1). Keystore props live next to the repo:
+//   <parent>/.deploy-keys/v2x2map-keystore.properties
 val keystorePropsPath: String = providers.gradleProperty("V2X2MAP_KEYSTORE_PROPERTIES")
-    .getOrElse(rootDir.resolve("../../.deploy-keys/v2x2map-keystore.properties").absolutePath)
+    .getOrElse(rootDir.resolve("../.deploy-keys/v2x2map-keystore.properties").absolutePath)
 val keystoreProps = Properties().apply {
     val f = file(keystorePropsPath)
     if (f.exists()) f.inputStream().use { load(it) }
@@ -71,6 +73,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":shared"))
+
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
