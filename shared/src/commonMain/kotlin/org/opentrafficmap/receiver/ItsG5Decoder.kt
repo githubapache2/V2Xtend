@@ -1,8 +1,5 @@
 package org.opentrafficmap.receiver
 
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-
 /**
  * Minimal IEEE 802.11p / LLC-SNAP / GeoNetworking / BTP decoder.
  *
@@ -223,7 +220,10 @@ object ItsG5Decoder {
     }
 
     private fun readBeI32(p: ByteArray, off: Int): Int =
-        ByteBuffer.wrap(p, off, 4).order(ByteOrder.BIG_ENDIAN).int
+        ((p[off].toInt() and 0xFF) shl 24) or
+        ((p[off + 1].toInt() and 0xFF) shl 16) or
+        ((p[off + 2].toInt() and 0xFF) shl 8) or
+        (p[off + 3].toInt() and 0xFF)
 
     private val HDR_LENGTHS = intArrayOf(24, 26, 30, 32)
 

@@ -32,8 +32,9 @@ class MarkerLayer(private val map: MapView, private val context: Context) {
         val ll = f.latLon ?: return
         val pt = GeoPoint(ll.first, ll.second)
 
-        if (f.msgType == ItsG5Decoder.MsgType.CAM && f.stationId != null) {
-            updatePath(f.stationId, pt)
+        val stationId = f.stationId
+        if (f.msgType == ItsG5Decoder.MsgType.CAM && stationId != null) {
+            updatePath(stationId, pt)
             updateCamMarker(f, pt)
             return
         }

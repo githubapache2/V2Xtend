@@ -27,8 +27,8 @@ data class Frame(
         val sb = StringBuilder(n * 2)
         for (i in 0 until n) {
             val v = payload[i].toInt() and 0xFF
-            if (v < 0x10) sb.append('0')
-            sb.append(Integer.toHexString(v))
+            sb.append(((v ushr 4) and 0xF).toString(16))
+            sb.append((v and 0xF).toString(16))
         }
         return sb.toString()
     }

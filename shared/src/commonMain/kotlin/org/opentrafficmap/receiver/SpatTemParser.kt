@@ -27,7 +27,7 @@ object SpatTemParser {
         fun constrained(lo: Int, hi: Int): Int {
             val range = hi - lo + 1
             if (range <= 1) return lo
-            val nbits = 32 - Integer.numberOfLeadingZeros(range - 1)
+            val nbits = 32 - (range - 1).countLeadingZeroBits()
             return lo + bits(nbits)
         }
     }

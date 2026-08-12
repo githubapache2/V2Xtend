@@ -1,8 +1,5 @@
 package org.opentrafficmap.receiver
 
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-
 /**
  * Resync parser for the ESP-side wire format:
  *
@@ -38,11 +35,9 @@ class FrameReader {
                 val it = buf.iterator()
                 for (j in 0 until HEADER_LEN) hdr[j] = it.next()
             }
-            val bb = ByteBuffer.wrap(hdr).order(ByteOrder.LITTLE_ENDIAN)
-            bb.position(4)
-            val sec = bb.int.toLong() and 0xFFFFFFFFL
-            val usec = bb.int.toLong() and 0xFFFFFFFFL
-            val plen = bb.short.toInt() and 0xFFFF
+            val sec = readLeU32(hdr, 4)
+            val usec = readLeU32(hdr, 8)
+            val plen = readLeU16(hdr, 12)
 
             if (plen > MAX_PAYLOAD) {
                 // implausible: drop this magic and resync
@@ -92,6 +87,18 @@ class FrameReader {
         }
         return -1
     }
+
+
+    private fun readLeU32(p: ByteArray, off: Int): Long {
+        val v = (p[off].toInt() and 0xFF) or
+            ((p[off + 1].toInt() and 0xFF) shl 8) or
+            ((p[off + 2].toInt() and 0xFF) shl 16) or
+            ((p[off + 3].toInt() and 0xFF) shl 24)
+        return v.toLong() and 0xFFFFFFFFL
+    }
+
+    private fun readLeU16(p: ByteArray, off: Int): Int =
+        (p[off].toInt() and 0xFF) or ((p[off + 1].toInt() and 0xFF) shl 8)
 
     companion object {
         const val HEADER_LEN = 14

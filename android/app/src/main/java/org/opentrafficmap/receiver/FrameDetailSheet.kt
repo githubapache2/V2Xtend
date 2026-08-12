@@ -73,16 +73,19 @@ object FrameDetailSheet {
             row(ctx.getString(R.string.detail_label_position), "—")
         }
 
-        if (f.speedMps != null && f.speedMps > 0.0)
-            row(ctx.getString(R.string.detail_label_speed), "%.1f km/h".format(f.speedMps * 3.6))
-        if (f.headingDeg != null)
+        val speedMps = f.speedMps
+        if (speedMps != null && speedMps > 0.0)
+            row(ctx.getString(R.string.detail_label_speed), "%.1f km/h".format(speedMps * 3.6))
+        val headingDeg = f.headingDeg
+        if (headingDeg != null)
             row(ctx.getString(R.string.detail_label_heading),
-                "%.1f°  %s".format(f.headingDeg, compassPoint(f.headingDeg)))
-        if (f.denmCause != null) {
-            val sub = f.denmCause.sublabel()
-            val causeStr = "${f.denmCause.causeCode} – ${f.denmCause.label()}" +
+                "%.1f°  %s".format(headingDeg, compassPoint(headingDeg)))
+        val denmCause = f.denmCause
+        if (denmCause != null) {
+            val sub = denmCause.sublabel()
+            val causeStr = "${denmCause.causeCode} – ${denmCause.label()}" +
                 (if (sub.isNotEmpty()) "  $sub" else "") +
-                " / ${f.denmCause.subCauseCode}"
+                " / ${denmCause.subCauseCode}"
             row(ctx.getString(R.string.detail_label_cause), causeStr)
         }
 

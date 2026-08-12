@@ -970,8 +970,9 @@ class MainActivity : AppCompatActivity() {
             citsAlertBar.onMessage(f.msgType, describeFrame(f))
             sessionCounters.increment(f.msgType)
 
-            if (f.msgType == ItsG5Decoder.MsgType.SPATEM && f.latLon != null) {
-                val (lat, lon) = f.latLon
+            val spatLatLon = f.latLon
+            if (f.msgType == ItsG5Decoder.MsgType.SPATEM && spatLatLon != null) {
+                val (lat, lon) = spatLatLon
                 spatRsus[f.stationId ?: 0L] = SpatRsu(lat, lon,
                     f.spatPhase ?: SpatTemParser.Phase.UNKNOWN, System.currentTimeMillis())
                 lastLocation?.let { updateSpatLight(it) }
