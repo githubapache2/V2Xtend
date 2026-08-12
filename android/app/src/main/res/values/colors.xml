@@ -10,4 +10,8 @@
     <color name="ok">#7EE787</color>
     <color name="warn">#F0883E</color>
     <color name="danger">#DA3633</color>
+
+    <!-- Launcher icon adaptive background — matches the black canvas of
+         the source logo (Ld2E1.jpg). -->
+    <color name="ic_launcher_background">#000000</color>
 </resources>
