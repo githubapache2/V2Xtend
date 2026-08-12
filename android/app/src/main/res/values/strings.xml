@@ -151,7 +151,7 @@
     <string name="about_section">About</string>
     <string name="about_link">Licenses / About this app</string>
     <string name="github_link">GitHub repository</string>
-    <string name="github_url">https://github.com/pit711/V2X2MAP</string>
+    <string name="github_url">https://github.com/githubapache2/V2Xtend</string>
 
     <!-- Legal disclaimer -->
     <string name="legal_title">Legal notice</string>
