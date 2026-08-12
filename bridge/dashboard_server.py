@@ -1,5 +1,5 @@
 """
-Local HTTP+SSE dashboard server for the ITS-G5 bridge  (V2X2MAP).
+Local HTTP+SSE dashboard server for the ITS-G5 bridge  (V2Xtend).
 
 Routes:
   GET  /              → dashboard.html

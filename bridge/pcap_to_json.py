@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Liest eine .pcap-Datei (DLT_IEEE802_11, von der V2X2MAP-Bridge geschrieben)
+Liest eine .pcap-Datei (DLT_IEEE802_11, von der V2Xtend-Bridge geschrieben)
 und gibt jedes ITS-G5-Paket als JSON-Zeile aus.
 
 Nutzt tshark im Hintergrund als Decoder (statt einer selbstgebauten Parser-

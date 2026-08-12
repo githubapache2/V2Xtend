@@ -23,7 +23,7 @@
     <string name="follow_off">Folgen</string>
     <string name="settings">Einstellungen</string>
     <string name="settings_title">Einstellungen</string>
-    <string name="about_title">Über V2X2MAP</string>
+    <string name="about_title">Über V2Xtend</string>
 
     <!-- Settings categories -->
     <string name="toggle_section">Abschnitt ein-/ausblenden</string>
@@ -144,7 +144,7 @@
 
     <!-- Legal -->
     <string name="legal_title">Rechtlicher Hinweis</string>
-    <string name="legal_body">V2X2MAP empfängt und protokolliert ITS-G5 (5,9 GHz, IEEE 802.11p)-Funkdaten von Fahrzeugen und Infrastruktur. Das Empfangen und Verarbeiten dieser Daten unterliegt nationalen Gesetzen — insbesondere zu Funkrecht, Datenschutz und Aufzeichnung personenbezogener Daten. Stelle vor Nutzung sicher, dass du in deinem Land berechtigt bist, diese Funkdaten zu empfangen und gegebenenfalls weiterzuleiten. Diese App speichert standardmäßig keine Daten auf externen Servern. Mit Tippen auf „Akzeptieren" bestätigst du, dass du die rechtliche Verantwortung trägst.</string>
+    <string name="legal_body">V2Xtend empfängt und protokolliert ITS-G5 (5,9 GHz, IEEE 802.11p)-Funkdaten von Fahrzeugen und Infrastruktur. Das Empfangen und Verarbeiten dieser Daten unterliegt nationalen Gesetzen — insbesondere zu Funkrecht, Datenschutz und Aufzeichnung personenbezogener Daten. Stelle vor Nutzung sicher, dass du in deinem Land berechtigt bist, diese Funkdaten zu empfangen und gegebenenfalls weiterzuleiten. Diese App speichert standardmäßig keine Daten auf externen Servern. Mit Tippen auf „Akzeptieren" bestätigst du, dass du die rechtliche Verantwortung trägst.</string>
     <string name="legal_accept">Akzeptieren</string>
     <string name="legal_quit">Beenden</string>
 

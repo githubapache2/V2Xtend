@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">V2X2MAP</string>
+    <string name="app_name">V2Xtend</string>
     <string name="status_disconnected">USB: not connected</string>
     <string name="status_connected">USB: %1$s</string>
     <string name="bt_status_disconnected">BT: not connected</string>
@@ -38,7 +38,7 @@
     <string name="follow_off">Follow</string>
     <string name="settings">Settings</string>
     <string name="settings_title">Settings</string>
-    <string name="about_title">About V2X2MAP</string>
+    <string name="about_title">About V2Xtend</string>
 
     <!-- Settings categories -->
     <string name="toggle_section">Toggle section</string>
@@ -155,7 +155,7 @@
 
     <!-- Legal disclaimer -->
     <string name="legal_title">Legal notice</string>
-    <string name="legal_body">V2X2MAP receives and logs ITS-G5 (5.9 GHz, IEEE 802.11p) radio data from vehicles and infrastructure. Receiving and processing this data is subject to national law — in particular telecommunications regulations, data-protection law and the recording of personal data. Make sure you are entitled to receive (and, where applicable, forward) this radio data in your jurisdiction before using the app. By default this app does not upload data to external servers. By tapping "Accept" you confirm that you take responsibility for compliant use.</string>
+    <string name="legal_body">V2Xtend receives and logs ITS-G5 (5.9 GHz, IEEE 802.11p) radio data from vehicles and infrastructure. Receiving and processing this data is subject to national law — in particular telecommunications regulations, data-protection law and the recording of personal data. Make sure you are entitled to receive (and, where applicable, forward) this radio data in your jurisdiction before using the app. By default this app does not upload data to external servers. By tapping "Accept" you confirm that you take responsibility for compliant use.</string>
     <string name="legal_accept">Accept</string>
     <string name="legal_quit">Quit</string>
 
@@ -243,7 +243,7 @@
     <string name="hw_reset_body">The USB and BT connection screens have a "Reset on start" option that pulses RTS high for 100 ms and then low again. This soft-resets the ESP32-C5 without unplugging the cable and triggers a new test frame.</string>
 
     <!-- About body -->
-    <string name="about_app_name">V2X2MAP</string>
+    <string name="about_app_name">V2Xtend</string>
     <string name="about_version">Version %1$s (build %2$d)</string>
     <string name="about_blurb">Open-source receiver and live map for ITS-G5 (V2X) vehicle and infrastructure data. Hardware: ESP32-C5 sniffer + USB and BLE bridge.</string>
     <string name="about_licenses_header">Open-source libraries</string>

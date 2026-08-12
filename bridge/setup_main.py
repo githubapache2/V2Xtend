@@ -1,5 +1,5 @@
 """
-Entry point for the V2X2MAP Setup executable (its-g5-setup.exe).
+Entry point for the V2Xtend Setup executable (its-g5-setup.exe).
 
 Runs the setup wizard; if the user checks "Bridge automatisch starten",
 launches its-g5-bridge.exe from the same directory afterwards.
@@ -42,7 +42,7 @@ def main():
                 0,
                 f"Could not launch its-g5-bridge.exe:\n{exc}\n\n"
                 f"Make sure both EXE files are in the same folder:\n{exe_dir}",
-                "V2X2MAP — Launch failed",
+                "V2Xtend — Launch failed",
                 0x30,  # MB_ICONWARNING | MB_OK
             )
 

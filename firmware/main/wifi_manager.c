@@ -1,5 +1,5 @@
 /**
- * wifi_manager.c — home WiFi connectivity for V2X2MAP
+ * wifi_manager.c — home WiFi connectivity for V2Xtend
  *
  * Two-phase init so it works alongside the existing sniffer:
  *

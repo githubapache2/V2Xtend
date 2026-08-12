@@ -1,5 +1,5 @@
 """
-ITS-G5 Receiver USB-to-MQTT bridge  (V2X2MAP).
+ITS-G5 Receiver USB-to-MQTT bridge  (V2Xtend).
 
 Reads framed packets from an ESP32-C5 connected via USB-Serial-JTAG and
 republishes them to one or more MQTT brokers.
@@ -490,7 +490,7 @@ def _check_disclaimer(cfg: dict) -> bool:
 
     sep = "=" * 66
     print(f"\n{sep}")
-    print("  V2X2MAP ITS-G5 Bridge — Legal Notice / Rechtlicher Hinweis")
+    print("  V2Xtend ITS-G5 Bridge — Legal Notice / Rechtlicher Hinweis")
     print(sep)
     print()
     print(_DISCLAIMER)
@@ -520,7 +520,7 @@ def _check_disclaimer(cfg: dict) -> bool:
 
 def main():
     p = argparse.ArgumentParser(
-        description="ITS-G5 USB->MQTT bridge  (V2X2MAP)\n"
+        description="ITS-G5 USB->MQTT bridge  (V2Xtend)\n"
                     f"Config: {_config_path()}",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

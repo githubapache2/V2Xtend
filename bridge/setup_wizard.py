@@ -1,5 +1,5 @@
 """
-Tkinter setup wizard for the V2X2MAP ITS-G5 Receiver bridge.
+Tkinter setup wizard for the V2Xtend ITS-G5 Receiver bridge.
 
 Steps:
   1. Device — pick the serial port
@@ -89,7 +89,7 @@ class _UiWriter(io.TextIOBase):
 
 class _MarkerArt:
     """Draws the app's map-marker artwork (top-down car, bus, 3-light signal) onto a
-    tk.Canvas — the same visual language as the V2X2MAP app, as pure vector calls so
+    tk.Canvas — the same visual language as the V2Xtend app, as pure vector calls so
     the bundle needs no image assets and stays crisp at any scale."""
 
     VEHICLE_BLUE = "#2f7fd0"
@@ -147,7 +147,7 @@ class SetupWizard:
         self.result: dict | None = None
 
         self.root = tk.Tk()
-        self.root.title("V2X2MAP — Setup")
+        self.root.title("V2Xtend — Setup")
         self.root.geometry("640x560")
         self.root.minsize(620, 500)
         self._center_window()
@@ -197,7 +197,7 @@ class SetupWizard:
         markers (car, bus, live traffic signal) drawn as vector art."""
         c = tk.Canvas(self.root, height=76, highlightthickness=0, bg="#1d2530")
         c.pack(fill="x")
-        c.create_text(20, 28, anchor="w", text="V2X2MAP",
+        c.create_text(20, 28, anchor="w", text="V2Xtend",
                       font=(UI_FONT, 20, "bold"), fill="white")
         c.create_text(20, 52, anchor="w", text="ITS-G5 Receiver · Setup & Firmware-Flasher",
                       font=(UI_FONT, 11), fill="#93a1af")
@@ -229,7 +229,7 @@ class SetupWizard:
     # ── Step 1: Device ───────────────────────────────────────────────────────
     def _build_step1(self, nb):
         f = ttk.Frame(nb, padding=20); nb.add(f, text="1. Device")
-        ttk.Label(f, text="V2X2MAP Setup", font=(UI_FONT, 15, "bold")).pack(anchor="w")
+        ttk.Label(f, text="V2Xtend Setup", font=(UI_FONT, 15, "bold")).pack(anchor="w")
         ttk.Label(f, text=f"Connect the ESP32-C5 via USB and select the {PORT_WORD}.\n"
                           "Detected ESP32 boards are preselected automatically.",
                   wraplength=540, justify="left").pack(anchor="w", pady=(8, 16))
@@ -303,7 +303,7 @@ class SetupWizard:
             "No further configuration is needed:\n\n"
             "  •  The receiver derives its node-id automatically from its own\n"
             "      hardware MAC address (V2X2MAP…).\n"
-            "  •  Open the V2X2MAP app on your phone — the receiver appears\n"
+            "  •  Open the V2Xtend app on your phone — the receiver appears\n"
             "      via Bluetooth within a few seconds.")).pack(anchor="w")
 
     # ── serial port ──────────────────────────────────────────────────────────
