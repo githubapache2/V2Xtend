@@ -321,6 +321,20 @@ static int gap_event_cb(struct ble_gap_event *ev, void *arg)
             s_notify_enabled = false;
             led_status_ble_connected(true);
             ESP_LOGI(TAG, "connect: handle=%d", s_conn_handle);
+            /* Log the *host-chosen* initial connection parameters before we
+             * ask for an update. On Apple centrals this is the evidence for
+             * the M3 supervision-timeout measurement (CLAUDE.md): Core
+             * Bluetooth does not expose these values to the iOS app. */
+            struct ble_gap_conn_desc desc;
+            if (ble_gap_conn_find(s_conn_handle, &desc) == 0) {
+                dbg_printf("[bt] connect itvl=%u (%.2fms) lat=%u timeout=%u (%.2fs)",
+                           desc.conn_itvl, desc.conn_itvl * 1.25,
+                           desc.conn_latency,
+                           desc.supervision_timeout,
+                           desc.supervision_timeout * 0.01);
+            } else {
+                dbg_printf("[bt] connect: handle=%d (conn_find failed)", s_conn_handle);
+            }
             /* Stretch the supervision timeout so the coex sniff windows (where
              * the BLE link is starved) don't tear the link down.
              *
@@ -330,7 +344,10 @@ static int gap_event_cb(struct ble_gap_event *ev, void *arg)
              * and fall back to its ~0.7 s default, so every connected sniff
              * window (CYC_CONN_SNIFF, e.g. 800 ms) trips connectionTimeout and
              * the iPhone reconnect-loops. 5 s is within Apple's range and still
-             * comfortably spans the sniff window. Keep CYC_CONN_SNIFF < ~5 s. */
+             * comfortably spans the sniff window. Keep CYC_CONN_SNIFF < ~5 s.
+             *
+             * ⚠️ Empirically re-verify on the current iOS device in M3 before
+             * treating 0.7 s / 5 s as settled facts — see CLAUDE.md Messpunkt. */
             struct ble_gap_upd_params up = {
                 .itvl_min            = 0x18,   /* 30 ms */
                 .itvl_max            = 0x28,   /* 50 ms */
@@ -339,14 +356,38 @@ static int gap_event_cb(struct ble_gap_event *ev, void *arg)
                 .min_ce_len          = 0,
                 .max_ce_len          = 0,
             };
+            dbg_printf("[bt] requesting conn_update itvl=0x18..0x28 lat=0 timeout=500");
             ble_gap_update_params(s_conn_handle, &up);
         } else {
             ESP_LOGW(TAG, "connect failed status=%d", ev->connect.status);
+            dbg_printf("[bt] connect FAILED status=%d", ev->connect.status);
             start_advertising();
         }
         break;
+    case BLE_GAP_EVENT_CONN_UPDATE: {
+        /* status==0 → host accepted; non-zero → rejected (Apple then keeps
+         * the initial short supervision timeout — the classic ~0.7 s trap). */
+        struct ble_gap_conn_desc desc;
+        int frc = ble_gap_conn_find(ev->conn_update.conn_handle, &desc);
+        if (frc == 0) {
+            dbg_printf("[bt] conn_update status=%d → itvl=%u (%.2fms) lat=%u timeout=%u (%.2fs)",
+                       ev->conn_update.status,
+                       desc.conn_itvl, desc.conn_itvl * 1.25,
+                       desc.conn_latency,
+                       desc.supervision_timeout,
+                       desc.supervision_timeout * 0.01);
+            ESP_LOGI(TAG, "conn_update status=%d itvl=%u lat=%u timeout=%u",
+                     ev->conn_update.status, desc.conn_itvl,
+                     desc.conn_latency, desc.supervision_timeout);
+        } else {
+            dbg_printf("[bt] conn_update status=%d (conn_find rc=%d)",
+                       ev->conn_update.status, frc);
+        }
+        break;
+    }
     case BLE_GAP_EVENT_DISCONNECT:
         ESP_LOGI(TAG, "disconnect: reason=0x%x", ev->disconnect.reason);
+        dbg_printf("[bt] disconnect reason=0x%x", ev->disconnect.reason);
         s_conn_handle = BLE_HS_CONN_HANDLE_NONE;
         s_notify_enabled = false;
         led_status_ble_connected(false);
