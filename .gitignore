@@ -16,6 +16,13 @@ ios/**/DerivedData/
 ios/**/xcuserdata/
 *.xcuserstate
 
+# Local iOS Xcode backups / scratch (signing, private sources)
+ios-m3-backup-*/
+
+# Local test harnesses / PR scratchpads (kept out of the public tree for now)
+scripts/
+pr_drafts/
+
 # Python venv / pycache / PyInstaller
 bridge/__pycache__/
 bridge/build/
@@ -44,13 +51,22 @@ android/.kotlin/
 Thumbs.db
 .vscode/
 
-# Captured frame logs
+# Captured frame logs / field pcaps (local)
 *.itsg5
+*.pcap
 
 # On-device USB diagnostics dumps
 blelog.txt
 *.key
 *.pem
+
+# KMQTT OpenSSL klibs (scripts/fetch_kmqtt_openssl.sh) — ~6 MB each, not in git
+openssl-ios-*.klib
+openssl-macos-*.klib
+openssl-linux-*.klib
+openssl-mingw-*.klib
+openssl-tvos-*.klib
+openssl-watchos-*.klib
 
 website/
 
