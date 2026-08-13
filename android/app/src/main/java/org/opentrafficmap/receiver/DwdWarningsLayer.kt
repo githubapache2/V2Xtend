@@ -22,7 +22,7 @@ class DwdWarningsLayer(private val map: MapView, private val context: Context) {
             val (fill, stroke) = colorsForLevel(w.level)
             for (region in w.regions) {
                 val poly = Polygon(map).apply {
-                    points = region.map { (lat, lon) -> GeoPoint(lat, lon) }
+                    points = region.map { GeoPoint(it.lat, it.lon) }
                     fillColor    = fill
                     strokeColor  = stroke
                     strokeWidth  = 3f

@@ -929,7 +929,7 @@ class MainActivity : AppCompatActivity() {
         stopMqtt()
         val nodeId = Prefs.nodeId(this).trim().ifEmpty { getString(R.string.default_node_id) }
         Prefs.mqttBrokerList(this).filter { it.isNotBlank() }.forEach { url ->
-            MqttBridge(nodeId, normaliseBroker(url.trim())).also {
+            MqttBridge(nodeId, url.trim(), clientIdPrefix = "android-bridge").also {
                 it.start()
                 mqttBridges.add(it)
             }
@@ -939,14 +939,6 @@ class MainActivity : AppCompatActivity() {
     private fun stopMqtt() {
         mqttBridges.forEach { it.stop() }
         mqttBridges.clear()
-    }
-
-    private fun normaliseBroker(s: String): String = when {
-        s.startsWith("mqtts://") -> "ssl://" + s.removePrefix("mqtts://")
-        s.startsWith("mqtt://")  -> "tcp://" + s.removePrefix("mqtt://")
-        s.startsWith("ssl://")   -> s
-        s.startsWith("tcp://")   -> s
-        else                      -> "ssl://$s"
     }
 
     // ---------------------------------------------------------- Frames
@@ -1085,7 +1077,8 @@ class MainActivity : AppCompatActivity() {
         // the map currently shows" would need either a road/region lookup
         // table or picking roads from the user's GPS position — deliberately
         // out of scope for this first end-to-end pass.
-        private val ROADWORK_ROAD_IDS = listOf("A555", "A59", "A565", "A61", "A560")
+        private val ROADWORK_ROAD_IDS = OverlayRegion.ROAD_IDS
+        // Kept name for call-site clarity; value lives in shared OverlayRegion.
 
         // How long a SPATEM RSU is considered "still broadcasting" without a
         // fresh frame — shared between the existing 400m SPAT-light indicator

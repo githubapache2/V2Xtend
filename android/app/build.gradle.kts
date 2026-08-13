@@ -97,5 +97,4 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.0.1")
 
     // MQTT (Paho Java client, async I/O runs on its own thread)
-    implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
 }
