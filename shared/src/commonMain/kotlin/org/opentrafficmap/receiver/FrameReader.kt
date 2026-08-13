@@ -11,13 +11,22 @@ package org.opentrafficmap.receiver
  *
  * Drop everything that's not a magic-prefixed frame (ROM bootloader text, stray
  * log bytes, etc.). Same logic as bridge/its_g5_bridge.py:FrameReader.
+ *
+ * Callers should prefer feeding **one transport chunk at a time** (one BLE
+ * notify / one USB read). If a multi-chunk frame loses its tail on the wire,
+ * the next chunk often starts a new `ITS5` frame (e.g. DENM after MAPEM); we
+ * detect that and drop the truncated partial so the new frame is not absorbed
+ * as bogus payload.
  */
 class FrameReader {
     private val buf = ArrayDeque<Byte>()
     private var seq = 0L
 
-    /** Feed raw bytes from the serial port. Returns any complete frames found. */
+    /** Feed raw bytes from the serial/BLE port. Returns any complete frames found. */
     fun feed(chunk: ByteArray, len: Int = chunk.size): List<Frame> {
+        if (len > 0 && incompleteFrameWaiting() && startsWithMagic(chunk, len)) {
+            buf.clear()
+        }
         for (i in 0 until len) buf.addLast(chunk[i])
         val out = mutableListOf<Frame>()
         while (true) {
@@ -70,6 +79,25 @@ class FrameReader {
         }
     }
 
+    /** True when buf holds a valid ITS5 header but not yet a full payload. */
+    private fun incompleteFrameWaiting(): Boolean {
+        if (findMagic() != 0) return false
+        if (buf.size < HEADER_LEN) return false
+        val hdr = ByteArray(HEADER_LEN)
+        val it = buf.iterator()
+        for (j in 0 until HEADER_LEN) hdr[j] = it.next()
+        val plen = readLeU16(hdr, 12)
+        if (plen > MAX_PAYLOAD) return false
+        return buf.size < HEADER_LEN + plen
+    }
+
+    private fun startsWithMagic(chunk: ByteArray, len: Int): Boolean =
+        len >= 4 &&
+            (chunk[0].toInt() and 0xFF) == 0x49 &&
+            (chunk[1].toInt() and 0xFF) == 0x54 &&
+            (chunk[2].toInt() and 0xFF) == 0x53 &&
+            (chunk[3].toInt() and 0xFF) == 0x35
+
     private fun findMagic(): Int {
         // Linear scan; small buffers make this fine.
         val n = buf.size
@@ -87,7 +115,6 @@ class FrameReader {
         }
         return -1
     }
-
 
     private fun readLeU32(p: ByteArray, off: Int): Long {
         val v = (p[off].toInt() and 0xFF) or
