@@ -22,6 +22,7 @@
 #include "ble_cache.h"
 #include "cmd_sniffer.h"
 #include "led.h"
+#include "msg_classify.h"
 
 /* Private NimBLE API: forces the controller's public address. Used here so
  * old Android stacks (Galaxy S6 / AOSP) accept the advertiser — they ignore
@@ -45,7 +46,30 @@ static const char TAG[] = "BT_STREAM";
 #define DEVICE_NAME            "ITS-G5-RX"
 #define HEADER_LEN             14
 #define MAX_PAYLOAD            2048
+/* Live notify jitter buffer — drop-newest when full (keep stream realtime). */
 #define FRAME_QUEUE_DEPTH      16
+/* Drain backlog: ≥ ble_cache capacity so a full DENM-first dump can enqueue
+ * without contending with live on the same 16-deep queue. */
+#define DRAIN_QUEUE_DEPTH      BLE_CACHE_CAPACITY
+/* After each drained frame: keep NimBLE mbufs from bursting into ENOMEM
+ * (evict-r3: notify rc=6 while dumping cache). */
+#define DRAIN_FRAME_PACE_MS    30
+/* Small gap between MTU chunks of a drain frame (MAPEM ≈ 2–3 chunks). */
+#define DRAIN_CHUNK_PACE_MS    15
+/* Live path: multi-chunk frames (MAPEM/DENM) need gaps large enough that
+ * iOS/CoreBluetooth + NimBLE mbufs don't drop chunk-2 — a lost chunk leaves
+ * FrameReader waiting and the next ITS5 frame (often DENM) gets absorbed.
+ * No blocking enqueue (HoL risk); DENMs use a separate live queue instead. */
+#define LIVE_CHUNK_PACE_MS     40
+#define LIVE_FRAME_PACE_MS     50
+#define LIVE_LARGE_FRAME_EXTRA_MS 100
+#define LIVE_LARGE_FRAME_BYTES 500
+/* Dedicated live DENM queue — never blocks publisher; writer prefers these
+ * after drain backlog, before ordinary live CAM/SPAT/MAPEM. */
+#define LIVE_DENM_QUEUE_DEPTH  8
+/* Retry notify/mbuf when stack returns BLE_HS_ENOMEM (rc=6). */
+#define NOTIFY_ENOMEM_RETRIES  12
+#define NOTIFY_ENOMEM_BACKOFF_MS 25
 
 /* Vendor UUIDs (NimBLE stores them little-endian, so the bytes below are
  * reversed vs. the canonical string form):
@@ -83,7 +107,9 @@ static uint16_t       s_chr_val_handle;
 static uint16_t       s_cfg_val_handle;
 static volatile bool  s_notify_enabled;
 static bool           s_ready;
-static QueueHandle_t  s_queue;
+static QueueHandle_t  s_live_queue;      /* realtime CAM/SPAT/MAPEM/… */
+static QueueHandle_t  s_live_denm_queue; /* realtime DENM — preferred over live */
+static QueueHandle_t  s_drain_queue;     /* cache reconnect backlog — writer prefers first */
 
 /* Coex cycle parameters, runtime-tunable via the config characteristic.
  * Values are milliseconds; volatile because read by coex_window_task and
@@ -568,40 +594,116 @@ static void coex_window_task(void *arg)
     }
 }
 
+static void writer_send_frame(qframe_t *qf, bool from_drain)
+{
+    if (s_conn_handle == BLE_HS_CONN_HANDLE_NONE || !s_notify_enabled) {
+        free(qf);
+        return;
+    }
+
+    uint16_t mtu = ble_att_mtu(s_conn_handle);
+    uint16_t chunk = (mtu > 3) ? (uint16_t)(mtu - 3) : 20;
+    uint16_t sent = 0;
+    bool aborted = false;
+
+    while (sent < qf->total_len && !aborted) {
+        uint16_t n = qf->total_len - sent;
+        if (n > chunk) n = chunk;
+
+        bool chunk_ok = false;
+        for (int attempt = 0; attempt <= NOTIFY_ENOMEM_RETRIES; attempt++) {
+            struct os_mbuf *om = ble_hs_mbuf_from_flat(qf->data + sent, n);
+            if (om == NULL) {
+                if (attempt < NOTIFY_ENOMEM_RETRIES) {
+                    vTaskDelay(pdMS_TO_TICKS(
+                        NOTIFY_ENOMEM_BACKOFF_MS * (1 + attempt / 2)));
+                    continue;
+                }
+                ESP_LOGW(TAG, "mbuf alloc failed after retries, dropping frame"
+                         " (%s len=%u sent=%u/%u)",
+                         from_drain ? "drain" : "live",
+                         (unsigned)qf->total_len, (unsigned)sent,
+                         (unsigned)qf->total_len);
+                aborted = true;
+                break;
+            }
+
+            int rc = ble_gatts_notify_custom(s_conn_handle, s_chr_val_handle, om);
+            if (rc == 0) {
+                chunk_ok = true;
+                break;
+            }
+
+            /* Failure: mbuf ownership is unclear across NimBLE versions —
+             * do not free; backoff and allocate a fresh one on retry. */
+            if (rc == BLE_HS_ENOMEM && attempt < NOTIFY_ENOMEM_RETRIES) {
+                ESP_LOGW(TAG, "notify rc=%d (ENOMEM), retry %d/%d (%s len=%u)",
+                         rc, attempt + 1, NOTIFY_ENOMEM_RETRIES,
+                         from_drain ? "drain" : "live",
+                         (unsigned)qf->total_len);
+                vTaskDelay(pdMS_TO_TICKS(
+                    NOTIFY_ENOMEM_BACKOFF_MS * (1 + attempt / 2)));
+                continue;
+            }
+
+            ESP_LOGW(TAG, "notify rc=%d, dropping frame (%s len=%u sent=%u/%u)",
+                     rc, from_drain ? "drain" : "live",
+                     (unsigned)qf->total_len, (unsigned)sent,
+                     (unsigned)qf->total_len);
+            aborted = true;
+            break;
+        }
+
+        if (!chunk_ok) break;
+
+        led_pulse_ble_tx();
+        sent += n;
+        if (sent < qf->total_len) {
+            uint32_t pace = from_drain ? DRAIN_CHUNK_PACE_MS : LIVE_CHUNK_PACE_MS;
+            if (pace) vTaskDelay(pdMS_TO_TICKS(pace));
+        }
+    }
+
+    uint16_t wire_len = qf->total_len;
+    bool denm = (wire_len > HEADER_LEN) &&
+                its_msg_is_denm(qf->data + HEADER_LEN, (uint16_t)(wire_len - HEADER_LEN));
+    free(qf);
+    if (!aborted) {
+        ESP_LOGI(TAG, "live/drain sent ok (%s len=%u%s)",
+                 from_drain ? "drain" : "live",
+                 (unsigned)wire_len,
+                 denm ? " DENM" : "");
+        uint32_t pace = from_drain ? DRAIN_FRAME_PACE_MS : LIVE_FRAME_PACE_MS;
+        if (!from_drain && wire_len > LIVE_LARGE_FRAME_BYTES) {
+            pace += LIVE_LARGE_FRAME_EXTRA_MS;
+        }
+        if (pace) vTaskDelay(pdMS_TO_TICKS(pace));
+    } else {
+        ESP_LOGW(TAG, "live/drain ABORTED mid-frame (%s len=%u%s) — phone FrameReader may need resync",
+                 from_drain ? "drain" : "live",
+                 (unsigned)wire_len,
+                 denm ? " DENM" : "");
+    }
+}
+
 static void writer_task(void *arg)
 {
     (void)arg;
     qframe_t *qf = NULL;
     for (;;) {
-        if (xQueueReceive(s_queue, &qf, portMAX_DELAY) != pdTRUE) continue;
-
-        if (s_conn_handle == BLE_HS_CONN_HANDLE_NONE || !s_notify_enabled) {
-            free(qf);
+        /* Priority: cache-drain → live DENM → other live.
+         * DENM never blocks the publisher (no HoL wait on enqueue). */
+        if (xQueueReceive(s_drain_queue, &qf, 0) == pdTRUE) {
+            writer_send_frame(qf, true);
             continue;
         }
-
-        uint16_t mtu = ble_att_mtu(s_conn_handle);
-        uint16_t chunk = (mtu > 3) ? (uint16_t)(mtu - 3) : 20;
-        uint16_t sent = 0;
-        while (sent < qf->total_len) {
-            uint16_t n = qf->total_len - sent;
-            if (n > chunk) n = chunk;
-            struct os_mbuf *om = ble_hs_mbuf_from_flat(qf->data + sent, n);
-            if (om == NULL) {
-                ESP_LOGW(TAG, "mbuf alloc failed, dropping frame");
-                break;
-            }
-            int rc = ble_gatts_notify_custom(s_conn_handle, s_chr_val_handle, om);
-            if (rc != 0) {
-                ESP_LOGW(TAG, "notify rc=%d, dropping", rc);
-                /* om is consumed by NimBLE on success; on failure we leak —
-                 * but there is no public API to free it explicitly here. */
-                break;
-            }
-            led_pulse_ble_tx();
-            sent += n;
+        if (xQueueReceive(s_live_denm_queue, &qf, 0) == pdTRUE) {
+            writer_send_frame(qf, false);
+            continue;
         }
-        free(qf);
+        if (xQueueReceive(s_live_queue, &qf, pdMS_TO_TICKS(20)) == pdTRUE) {
+            writer_send_frame(qf, false);
+        }
     }
 }
 
@@ -661,9 +763,12 @@ void bt_stream_init(void)
         return;
     }
 
-    s_queue = xQueueCreate(FRAME_QUEUE_DEPTH, sizeof(qframe_t *));
-    if (s_queue == NULL) {
-        ESP_LOGE(TAG, "queue create failed");
+    s_live_queue = xQueueCreate(FRAME_QUEUE_DEPTH, sizeof(qframe_t *));
+    s_live_denm_queue = xQueueCreate(LIVE_DENM_QUEUE_DEPTH, sizeof(qframe_t *));
+    s_drain_queue = xQueueCreate(DRAIN_QUEUE_DEPTH, sizeof(qframe_t *));
+    if (s_live_queue == NULL || s_live_denm_queue == NULL || s_drain_queue == NULL) {
+        ESP_LOGE(TAG, "queue create failed (live=%p denm=%p drain=%p)",
+                 (void *)s_live_queue, (void *)s_live_denm_queue, (void *)s_drain_queue);
         return;
     }
     BaseType_t xrc = xTaskCreate(writer_task, "bt_writer", 4096, NULL, 5, NULL);
@@ -734,8 +839,18 @@ void bt_stream_publish_packet(const uint8_t *payload, uint16_t len, uint32_t sec
     qframe_t *qf = build_qframe(payload, len, sec, usec);
     if (qf == NULL) return;
 
-    if (xQueueSend(s_queue, &qf, 0) != pdTRUE) {
-        free(qf);  /* queue full — drop newest, keep stream live */
+    /* Non-blocking: DENMs go on their own queue so a full CAM live queue
+     * never drops hazards, and we never stall the sniffer/replay task. */
+    if (its_msg_is_denm(payload, len)) {
+        if (xQueueSend(s_live_denm_queue, &qf, 0) != pdTRUE) {
+            ESP_LOGW(TAG, "live DENM queue full — drop DENM (len=%u)", (unsigned)len);
+            free(qf);
+        }
+        return;
+    }
+    if (xQueueSend(s_live_queue, &qf, 0) != pdTRUE) {
+        ESP_LOGW(TAG, "live queue full — drop newest (len=%u)", (unsigned)len);
+        free(qf);
     }
 }
 
@@ -745,11 +860,10 @@ static void cache_drain_emit(const uint8_t *payload, uint16_t len,
     (void)ctx;
     qframe_t *qf = build_qframe(payload, len, sec, usec);
     if (qf == NULL) return;
-    /* This is backlog data we specifically want delivered, not live-stream
-     * jitter we can afford to skip — block for a while rather than drop
-     * immediately if the real-time queue is momentarily full. */
-    if (xQueueSend(s_queue, &qf, pdMS_TO_TICKS(5000)) != pdTRUE) {
-        ESP_LOGW(TAG, "cache drain: queue still full after 5s, dropping cached frame");
+    /* Dedicated drain queue (writer prefers it over live). Block rather than
+     * drop — this is reconnect backlog, not realtime jitter. */
+    if (xQueueSend(s_drain_queue, &qf, pdMS_TO_TICKS(5000)) != pdTRUE) {
+        ESP_LOGW(TAG, "cache drain: drain queue still full after 5s, dropping cached frame");
         free(qf);
     }
 }

@@ -3,32 +3,35 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Verbindungsabbruch-Cache (siehe CLAUDE.md Roadmap Punkt 3).
+/* Verbindungsabbruch-Cache (siehe CLAUDE.md Roadmap Punkt 3 / M6).
  *
  * bt_stream_publish_packet() used to drop every packet outright while no
- * BLE client was connected/subscribed (`if (!connected) return;` — no
- * queue, no cache, just gone). This module gives it somewhere to put
- * those packets instead: a bounded ring buffer, held only while
- * disconnected, drained DENM-first the moment a client (re)subscribes to
- * notifications.
+ * BLE client was connected/subscribed. This module stashes those packets
+ * in a bounded ring buffer and drains DENM-first on (re)subscribe.
  *
- * Capacity: CACHE_CAPACITY * CACHE_SLOT_MAX bytes, static RAM (no heap).
+ * Capacity: BLE_CACHE_CAPACITY * BLE_CACHE_SLOT_MAX bytes, static BSS
+ * (no heap). Platform-agnostic — same firmware for Android and iOS.
  *
- * CACHE_SLOT_MAX (700) is a deliberate choice: sized against real field
- * data (all captured payloads so far <= 643 B) with headroom, not against
- * a worst-case IEEE 802.11 frame.
+ * BLE_CACHE_SLOT_MAX (960): field payloads historically ≤643 B; Graz
+ * MAPEM from pcap-20260811-080000.pcap is 927 B. 960 leaves headroom
+ * without jumping to a full 802.11 MTU. Live path MAX_PAYLOAD (2048) is
+ * unchanged — only the disconnect-cache slot size grows.
  *
- * CACHE_CAPACITY (24) is a round, pragmatic default, not a computed value
- * — no RAM budget or retry-interval calculation backs this specific
- * number. It comfortably covers the sparse traffic rates observed in
- * testing so far (see CLAUDE.md Punkt 3 for the empirical eviction-test
- * numbers), but has not been validated against sustained dense traffic
- * (e.g. a busy intersection) — revisit once real dense-traffic field data
- * exists (CLAUDE.md Punkt 1b).
+ * BLE_CACHE_CAPACITY (32) — revised after 64×960 boot-loop (2026-08-13):
+ *   - 64×960 B = 61.4 KB BSS left too little heap for WiFi+NimBLE on
+ *     ESP32-C5; boot died in ble_hs_event_start_stage2 (rc != 0),
+ *     rst:0x1a CPU_LOCKUP. Measured free heap at crash boot ≈103 KiB
+ *     HP DRAM for malloc — BLE init needs a healthy chunk of that.
+ *   - 32×960 B = 30.7 KB BSS: MAPEM still fits; ≈12.8 s of dense
+ *     400 ms/packet before CAM eviction; DENM-first unchanged.
+ *   - iOS still has no USB fallback — 32 is a deliberate trade of
+ *     reconnect coverage vs. reliable boot, not a placeholder.
+ *   - Revisit upward only after idf.py size + a clean BLE-start soak
+ *     (no assert) on device.
  */
 
-#define BLE_CACHE_CAPACITY  24
-#define BLE_CACHE_SLOT_MAX  700
+#define BLE_CACHE_CAPACITY  32
+#define BLE_CACHE_SLOT_MAX  960
 
 void ble_cache_init(void);
 
