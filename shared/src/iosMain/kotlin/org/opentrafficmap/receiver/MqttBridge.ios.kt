@@ -1,6 +1,7 @@
 package org.opentrafficmap.receiver
 
 import MQTTClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,6 +52,9 @@ actual class MqttBridge actual constructor(
             while (isActive && wantRunning) {
                 try {
                     runSession()
+                } catch (e: CancellationException) {
+                    connected = false
+                    throw e
                 } catch (e: Exception) {
                     connected = false
                     println("[MqttBridge] session error: ${e.message}")
@@ -62,7 +66,7 @@ actual class MqttBridge actual constructor(
     }
 
     actual fun publish(payload: ByteArray) {
-        if (!connected) return
+        if (!wantRunning || !connected) return
         val c = client ?: return
         try {
             c.publish(
@@ -78,24 +82,11 @@ actual class MqttBridge actual constructor(
 
     actual fun stop() {
         wantRunning = false
-        val c = client
-        client = null
         connected = false
         loopJob?.cancel()
         loopJob = null
-        if (c == null) return
-        scope.launch {
-            try {
-                c.publish(
-                    retain = true,
-                    qos = Qos.AT_MOST_ONCE,
-                    topic = statusTopic,
-                    payload = OFFLINE,
-                )
-                c.disconnect(ReasonCode.SUCCESS)
-            } catch (_: Exception) {
-            }
-        }
+        // Session teardown (offline + disconnect) runs only in runSession()'s
+        // finally block — never from a second coroutine while step() is active.
     }
 
     private fun tlsSettings(): TLSClientSettings? {
@@ -130,19 +121,21 @@ actual class MqttBridge actual constructor(
                 connectTimeout = 15,
                 connackTimeout = 15,
                 onConnected = {
-                    connected = true
-                    println("[MqttBridge] connected ${endpoint.describe()} → $statusTopic online")
-                    try {
-                        // QoS0: same as packet path — QoS1 status often never
-                        // completes under flaky TLS and leaves UI "connecting…".
-                        session.publish(
-                            retain = true,
-                            qos = Qos.AT_MOST_ONCE,
-                            topic = statusTopic,
-                            payload = ONLINE,
-                        )
-                    } catch (e: Exception) {
-                        println("[MqttBridge] status online error: ${e.message}")
+                    if (wantRunning) {
+                        connected = true
+                        println("[MqttBridge] connected ${endpoint.describe()} → $statusTopic online")
+                        try {
+                            // QoS0: same as packet path — QoS1 status often never
+                            // completes under flaky TLS and leaves UI "connecting…".
+                            session.publish(
+                                retain = true,
+                                qos = Qos.AT_MOST_ONCE,
+                                topic = statusTopic,
+                                payload = ONLINE,
+                            )
+                        } catch (e: Exception) {
+                            println("[MqttBridge] status online error: ${e.message}")
+                        }
                     }
                 },
                 onDisconnected = {
@@ -164,7 +157,19 @@ actual class MqttBridge actual constructor(
             }
             connected = false
             mutex.withLock {
-                if (client === session) client = null
+                if (client === session) {
+                    client = null
+                    try {
+                        session.publish(
+                            retain = true,
+                            qos = Qos.AT_MOST_ONCE,
+                            topic = statusTopic,
+                            payload = OFFLINE,
+                        )
+                        session.disconnect(ReasonCode.SUCCESS)
+                    } catch (_: Exception) {
+                    }
+                }
             }
         }
     }
